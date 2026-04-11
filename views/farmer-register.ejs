@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="auth-page farmer-auth-page">
+
+<div class="auth-bg"></div>
+<div class="auth-overlay"></div>
+
+<nav class="navbar navbar-expand-lg landing-nav auth-nav">
+    <div class="container">
+        <a class="navbar-brand brand-logo" href="/">🌾 Namma Raitha Jobs</a>
+        <a href="/" class="btn nav-contact-btn">Home</a>
+    </div>
+</nav>
+
+<div class="container auth-container">
+    <div class="row align-items-center min-vh-100">
+        <div class="col-lg-6 d-none d-lg-block">
+            <div class="auth-left-content">
+                <span class="hero-mini-tag">Farmer Registration</span>
+                <h1 class="auth-hero-title">Create your farmer account and start hiring faster.</h1>
+                <p class="auth-hero-text">
+                    Register to post agricultural work opportunities and connect with skilled rural workers in a more organized system.
+                </p>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="auth-card auth-card-large">
+                <h2 class="auth-title">Farmer Registration</h2>
+                <p class="auth-subtitle">Create your farmer account and start posting agricultural jobs.</p>
+
+                <form action="/farmer/register" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label auth-label">Full Name</label>
+                        <input type="text" name="full_name" class="form-control auth-input" required autocomplete="name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label auth-label">Phone</label>
+                        <input type="text" name="phone" class="form-control auth-input" required autocomplete="tel">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label auth-label">Village</label>
+                        <input type="text" name="village" class="form-control auth-input" autocomplete="address-level2">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label auth-label">Email</label>
+                        <input type="email" name="email" class="form-control auth-input" required autocomplete="email">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label auth-label">Password</label>
+                        <input type="password" name="password" class="form-control auth-input" required autocomplete="new-password">
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn auth-main-btn">Register</button>
+                        <a href="/farmer/login" class="btn auth-outline-btn">Already have an account?</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
