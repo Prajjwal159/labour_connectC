@@ -498,5 +498,4 @@ const translations = {
         clear_filters: "ಅಳಿಸಿ",
     }
 };
-
 module.exports = translations;
