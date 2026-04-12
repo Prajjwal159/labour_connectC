@@ -36,7 +36,9 @@
 
     <div class="soft-card p-4 mb-4">
         <h4 class="mb-3"><%= t('filter_jobs') %></h4>
-
+        <p class="premium-subtitle mb-4">
+            <%= t('your_skill_category') %>: <strong><%= workerSkill || 'N/A' %></strong>
+        </p>
         <form action="/worker/jobs" method="GET">
             <input type="hidden" name="lang" value="<%= currentLang %>">
 
@@ -44,6 +46,11 @@
                 <div class="col-md-4">
                     <label class="form-label"><%= t('location') %></label>
                     <input type="text" name="location" class="form-control" value="<%= filters?.location || '' %>" placeholder="<%= t('enter_location') %>">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label"><%= t('job_title_keyword') %></label>
+                    <input type="text" name="keyword" class="form-control" value="<%= filters?.keyword || '' %>" placeholder="<%= t('search_job_title') %>">
                 </div>
 
                 <div class="col-md-4">
@@ -86,7 +93,15 @@
                         <option value="UPI" <%= filters?.payment_mode === 'UPI' ? 'selected' : '' %>>UPI</option>
                     </select>
                 </div>
-
+                <div class="col-md-4">
+                    <label class="form-label"><%= t('sort_by') %></label>
+                    <select name="sort" class="form-select">
+                        <option value=""><%= t('default_sort') %></option>
+                        <option value="highest_wage" <%= filters?.sort === 'highest_wage' ? 'selected' : '' %>><%= t('highest_wage') %></option>
+                        <option value="newest" <%= filters?.sort === 'newest' ? 'selected' : '' %>><%= t('newest_jobs') %></option>
+                        <option value="skill_match" <%= filters?.sort === 'skill_match' ? 'selected' : '' %>><%= t('skill_matched_first') %></option>
+                    </select>
+                </div>
                 <div class="col-md-4 d-flex align-items-end gap-2">
                     <button type="submit" class="btn pretty-btn-green w-100"><%= t('apply_filters') %></button>
                     <a href="/worker/jobs?lang=<%= currentLang %>" class="btn pretty-btn-outline w-100"><%= t('clear_filters') %></a>

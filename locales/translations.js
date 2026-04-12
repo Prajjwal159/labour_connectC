@@ -247,6 +247,14 @@ const translations = {
         all_payment_modes: "All Payment Modes",
         apply_filters: "Apply Filters",
         clear_filters: "Clear",
+        sort_by: "Sort By",
+        default_sort: "Default",
+        highest_wage: "Highest Wage",
+        newest_jobs: "Newest Jobs",
+        skill_matched_first: "Skill-Matched First",
+        your_skill_category: "Your Skill Category",
+        job_title_keyword: "Job Title Keyword",
+        search_job_title: "Search by job title",
         },
     kn: {
         app_name: "ನಮ್ಮ ರೈತ ಜಾಬ್ಸ್",
@@ -496,6 +504,14 @@ const translations = {
         all_payment_modes: "ಎಲ್ಲಾ ಪಾವತಿ ವಿಧಾನಗಳು",
         apply_filters: "ಫಿಲ್ಟರ್ ಅನ್ವಯಿಸಿ",
         clear_filters: "ಅಳಿಸಿ",
+        sort_by: "ವಿಂಗಡಿಸಿ",
+        default_sort: "ಡೀಫಾಲ್ಟ್",
+        highest_wage: "ಅತ್ಯಧಿಕ ಕೂಲಿ",
+        newest_jobs: "ಇತ್ತೀಚಿನ ಕೆಲಸಗಳು",
+        skill_matched_first: "ಕೌಶಲ್ಯಕ್ಕೆ ಹೊಂದುವವು ಮೊದಲು",
+        your_skill_category: "ನಿಮ್ಮ ಕೌಶಲ್ಯದ ವರ್ಗ",
+        job_title_keyword: "ಕೆಲಸದ ಶೀರ್ಷಿಕೆ ಕೀವರ್ಡ್",
+        search_job_title: "ಕೆಲಸದ ಶೀರ್ಷಿಕೆಯಿಂದ ಹುಡುಕಿ",
     }
 };
 module.exports = translations;

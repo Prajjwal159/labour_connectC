@@ -327,15 +327,24 @@ app.get("/worker/jobs", (req, res) => {
     }
 
     const {
+        keyword = "",
         location = "",
         category = "",
         work_type = "",
         min_wage = "",
-        payment_mode = ""
+        payment_mode = "",
+        sort = ""
     } = req.query;
+
+    const workerSkill = req.session.worker.skill_category || "";
 
     let query = "SELECT * FROM jobs WHERE status = 'Open'";
     const params = [];
+
+    if (keyword) {
+        query += " AND job_title LIKE ?";
+        params.push(`%${keyword}%`);
+    }
 
     if (location) {
         query += " AND location LIKE ?";
@@ -362,7 +371,16 @@ app.get("/worker/jobs", (req, res) => {
         params.push(payment_mode);
     }
 
-    query += " ORDER BY created_at DESC";
+    if (sort === "highest_wage") {
+        query += " ORDER BY wage DESC, created_at DESC";
+    } else if (sort === "newest") {
+        query += " ORDER BY created_at DESC";
+    } else if (sort === "skill_match") {
+        query += " ORDER BY (category = ?) DESC, created_at DESC";
+        params.push(workerSkill);
+    } else {
+        query += " ORDER BY created_at DESC";
+    }
 
     db.query(query, params, (err, results) => {
         if (err) {
@@ -373,12 +391,15 @@ app.get("/worker/jobs", (req, res) => {
         res.render("worker-jobs", {
             jobs: results,
             filters: {
+                keyword,
                 location,
                 category,
                 work_type,
                 min_wage,
-                payment_mode
-            }
+                payment_mode,
+                sort
+            },
+            workerSkill
         });
     });
 });
