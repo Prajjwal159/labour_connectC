@@ -255,6 +255,9 @@ const translations = {
         your_skill_category: "Your Skill Category",
         job_title_keyword: "Job Title Keyword",
         search_job_title: "Search by job title",
+        workers_required: "Workers Required",
+        select_multiple_skills_help: "Hold Ctrl (or Cmd on Mac) to select multiple skills.",
+        choose_one_or_more_skills: "Choose one or more skills.",
         },
     kn: {
         app_name: "ನಮ್ಮ ರೈತ ಜಾಬ್ಸ್",
@@ -512,6 +515,9 @@ const translations = {
         your_skill_category: "ನಿಮ್ಮ ಕೌಶಲ್ಯದ ವರ್ಗ",
         job_title_keyword: "ಕೆಲಸದ ಶೀರ್ಷಿಕೆ ಕೀವರ್ಡ್",
         search_job_title: "ಕೆಲಸದ ಶೀರ್ಷಿಕೆಯಿಂದ ಹುಡುಕಿ",
+        workers_required: "ಬೇಕಾದ ಕಾರ್ಮಿಕರ ಸಂಖ್ಯೆ",
+        select_multiple_skills_help: "ಬಹು ಕೌಶಲ್ಯಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಲು Ctrl (ಅಥವಾ Mac ನಲ್ಲಿ Cmd) ಒತ್ತಿಹಿಡಿಯಿರಿ.",
+        choose_one_or_more_skills: "ಒಂದು ಅಥವಾ ಹೆಚ್ಚಿನ ಕೌಶಲ್ಯಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
     }
 };
 module.exports = translations;

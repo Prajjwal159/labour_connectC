@@ -43,7 +43,10 @@
                         <label><%= t('job_title') %></label>
                         <input type="text" name="job_title" class="form-control" required>
                     </div>
-
+                    <div class="mb-3">
+                        <label><%= t('workers_required') %></label>
+                        <input type="number" name="workers_required" class="form-control" min="1" required>
+                    </div>
                     <div class="mb-3">
                         <label><%= t('category') %></label>
                         <select name="category" class="form-select" required>

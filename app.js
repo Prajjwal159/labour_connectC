@@ -201,11 +201,27 @@ app.get("/farmer/dashboard", (req, res) => {
 
     const farmer = req.session.farmer;
 
-    const query = "SELECT * FROM jobs WHERE farmer_id = ? ORDER BY created_at DESC";
+    const query = `
+        SELECT 
+            jobs.*,
+            COUNT(
+                CASE 
+                    WHEN job_applications.application_status IN ('Applied', 'Accepted') 
+                    THEN 1 
+                END
+            ) AS applied_count
+        FROM jobs
+        LEFT JOIN job_applications
+            ON jobs.id = job_applications.job_id
+            AND job_applications.job_version = jobs.version
+        WHERE jobs.farmer_id = ?
+        GROUP BY jobs.id
+        ORDER BY jobs.created_at DESC
+    `;
 
     db.query(query, [farmer.id], (err, jobs) => {
         if (err) {
-            console.log(err);
+            console.log("FARMER DASHBOARD ERROR:", err);
             return res.send("Error fetching farmer jobs.");
         }
 
@@ -227,6 +243,7 @@ app.post("/farmer/post-job", (req, res) => {
         description,
         location,
         wage,
+        workers_required,
         payment_mode,
         start_date,
         end_date
@@ -234,13 +251,25 @@ app.post("/farmer/post-job", (req, res) => {
 
     const insertJobQuery = `
         INSERT INTO jobs 
-        (farmer_id, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date, version)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        (farmer_id, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date, version)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `;
 
     db.query(
         insertJobQuery,
-        [farmer_id, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date],
+        [
+            farmer_id,
+            job_title,
+            category,
+            work_type,
+            description,
+            location,
+            wage,
+            workers_required,
+            payment_mode,
+            start_date,
+            end_date
+        ],
         (err, result) => {
             if (err) {
                 console.log(err);
@@ -251,20 +280,32 @@ app.post("/farmer/post-job", (req, res) => {
 
             const insertVersionQuery = `
                 INSERT INTO job_versions
-                (job_id, version, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (job_id, version, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date, restored_from_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             `;
 
             db.query(
                 insertVersionQuery,
-                [jobId, 1, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date],
-                (versionErr, versionResult) => {
+                [
+                    jobId,
+                    1,
+                    job_title,
+                    category,
+                    work_type,
+                    description,
+                    location,
+                    wage,
+                    payment_mode,
+                    start_date,
+                    end_date
+                ],
+                (versionErr) => {
                     if (versionErr) {
                         console.log(versionErr);
                         return res.send("Job created, but version history could not be saved.");
                     }
 
-                    res.redirect("/farmer/dashboard");
+                    res.redirect(`/farmer/dashboard?lang=${req.query.lang || "en"}`);
                 }
             );
         }
@@ -282,8 +323,18 @@ app.get("/logout", (req, res) => {
 
 app.post("/worker/register", async (req, res) => {
     try {
-        const { full_name, phone, village, skill_category, experience_level, email, password } = req.body;
-
+        const { full_name, phone, village, experience_level, email, password } = req.body;
+        let { skill_category } = req.body;
+        if (!skill_category || (Array.isArray(skill_category) && skill_category.length === 0)) {
+            return res.render("error", {
+                message: "Please select at least one skill.",
+                backLink: "/worker/register"
+            });
+        }
+        // if multiple selected, convert array to comma-separated string
+        if (Array.isArray(skill_category)) {
+            skill_category = skill_category.join(",");
+        }
         const checkQuery = "SELECT * FROM workers WHERE email = ?";
         db.query(checkQuery, [email], async (err, result) => {
             if (err) {
@@ -336,55 +387,76 @@ app.get("/worker/jobs", (req, res) => {
         sort = ""
     } = req.query;
 
-    const workerSkill = req.session.worker.skill_category || "";
+    const workerSkills = (req.session.worker.skill_category || "")
+    .split(",")
+    .map(skill => skill.trim())
+    .filter(skill => skill !== "");
 
-    let query = "SELECT * FROM jobs WHERE status = 'Open'";
+    let query = `
+        SELECT 
+            jobs.*,
+            COUNT(
+                CASE 
+                    WHEN job_applications.application_status IN ('Applied', 'Accepted') 
+                    THEN 1 
+                END
+            ) AS applied_count
+        FROM jobs
+        LEFT JOIN job_applications
+            ON jobs.id = job_applications.job_id
+            AND job_applications.job_version = jobs.version
+        WHERE jobs.status = 'Open'
+    `;
+
     const params = [];
 
     if (keyword) {
-        query += " AND job_title LIKE ?";
+        query += " AND jobs.job_title LIKE ?";
         params.push(`%${keyword}%`);
     }
 
     if (location) {
-        query += " AND location LIKE ?";
+        query += " AND jobs.location LIKE ?";
         params.push(`%${location}%`);
     }
 
     if (category) {
-        query += " AND category = ?";
+        query += " AND jobs.category = ?";
         params.push(category);
     }
 
     if (work_type) {
-        query += " AND work_type = ?";
+        query += " AND jobs.work_type = ?";
         params.push(work_type);
     }
 
     if (min_wage) {
-        query += " AND wage >= ?";
+        query += " AND jobs.wage >= ?";
         params.push(min_wage);
     }
 
     if (payment_mode) {
-        query += " AND payment_mode = ?";
+        query += " AND jobs.payment_mode = ?";
         params.push(payment_mode);
     }
 
+    query += " GROUP BY jobs.id";
+
     if (sort === "highest_wage") {
-        query += " ORDER BY wage DESC, created_at DESC";
+        query += " ORDER BY jobs.wage DESC, jobs.created_at DESC";
     } else if (sort === "newest") {
-        query += " ORDER BY created_at DESC";
-    } else if (sort === "skill_match") {
-        query += " ORDER BY (category = ?) DESC, created_at DESC";
-        params.push(workerSkill);
+        query += " ORDER BY jobs.created_at DESC";
+    } else if (sort === "skill_match" && workerSkills.length > 0) {
+        const placeholders = workerSkills.map(() => "?").join(",");
+        query += ` ORDER BY (jobs.category IN (${placeholders})) DESC, jobs.created_at DESC`;
+        params.push(...workerSkills);
     } else {
-        query += " ORDER BY created_at DESC";
+        query += " ORDER BY jobs.created_at DESC";
     }
 
     db.query(query, params, (err, results) => {
         if (err) {
-            console.log(err);
+            console.log("WORKER JOBS ERROR:", err);
             return res.send("Error fetching jobs.");
         }
 
@@ -399,7 +471,7 @@ app.get("/worker/jobs", (req, res) => {
                 payment_mode,
                 sort
             },
-            workerSkill
+            workerSkills
         });
     });
 });
@@ -411,16 +483,17 @@ app.post("/worker/apply/:jobId", (req, res) => {
 
     const worker_id = req.session.worker.id;
     const job_id = req.params.jobId;
+    const currentLang = req.query.lang || "en";
 
     const jobQuery = "SELECT * FROM jobs WHERE id = ? AND status = 'Open'";
 
     db.query(jobQuery, [job_id], (jobErr, jobResult) => {
         if (jobErr) {
-            console.log(jobErr);
+            console.log("JOB FETCH ERROR:", jobErr);
             return res.render("message", {
                 title: "Application Error",
                 message: "Could not fetch job details.",
-                backLink: "/worker/jobs"
+                backLink: `/worker/jobs?lang=${currentLang}`
             });
         }
 
@@ -428,55 +501,130 @@ app.post("/worker/apply/:jobId", (req, res) => {
             return res.render("message", {
                 title: "Job Not Found",
                 message: "This job is unavailable or no longer open.",
-                backLink: "/worker/jobs"
+                backLink: `/worker/jobs?lang=${currentLang}`
             });
         }
 
         const job = jobResult[0];
         const currentVersion = job.version || 1;
 
-        const checkQuery = `
-            SELECT * FROM job_applications 
-            WHERE job_id = ? AND worker_id = ? AND job_version = ?
+        const countQuery = `
+            SELECT COUNT(*) AS total_applied
+            FROM job_applications
+            WHERE job_id = ?
+              AND job_version = ?
+              AND application_status IN ('Applied', 'Accepted')
         `;
 
-        db.query(checkQuery, [job_id, worker_id, currentVersion], (err, result) => {
-            if (err) {
-                console.log(err);
+        db.query(countQuery, [job_id, currentVersion], (countErr, countResult) => {
+            if (countErr) {
+                console.log("COUNT ERROR:", countErr);
                 return res.render("message", {
                     title: "Application Error",
-                    message: "There was a problem while checking your application.",
-                    backLink: "/worker/jobs"
+                    message: "Could not check current application count.",
+                    backLink: `/worker/jobs?lang=${currentLang}`
                 });
             }
 
-            if (result.length > 0) {
-                return res.render("message", {
-                    title: "Already Applied",
-                    message: "You have already applied for the current version of this job.",
-                    backLink: "/worker/jobs"
+            const totalApplied = countResult[0].total_applied || 0;
+
+            if (totalApplied >= job.workers_required) {
+                const closeQuery = "UPDATE jobs SET status = 'Closed' WHERE id = ?";
+
+                db.query(closeQuery, [job_id], (closeErr) => {
+                    if (closeErr) {
+                        console.log("AUTO CLOSE ERROR:", closeErr);
+                    }
+
+                    return res.render("message", {
+                        title: "Job Full",
+                        message: "This job has already reached the required number of workers and is now closed.",
+                        backLink: `/worker/jobs?lang=${currentLang}`
+                    });
                 });
+                return;
             }
 
-            const insertQuery = `
-                INSERT INTO job_applications (job_id, worker_id, job_version)
-                VALUES (?, ?, ?)
+            const checkQuery = `
+                SELECT * FROM job_applications
+                WHERE job_id = ? AND worker_id = ? AND job_version = ?
             `;
 
-            db.query(insertQuery, [job_id, worker_id, currentVersion], (insertErr, data) => {
-                if (insertErr) {
-                    console.log(insertErr);
+            db.query(checkQuery, [job_id, worker_id, currentVersion], (err, result) => {
+                if (err) {
+                    console.log("CHECK APPLY ERROR:", err);
                     return res.render("message", {
                         title: "Application Error",
-                        message: "There was a problem while applying for the job.",
-                        backLink: "/worker/jobs"
+                        message: "There was a problem while checking your application.",
+                        backLink: `/worker/jobs?lang=${currentLang}`
                     });
                 }
 
-                return res.render("message", {
-                    title: "Application Submitted",
-                    message: "You have successfully applied for this job.",
-                    backLink: "/worker/jobs"
+                if (result.length > 0) {
+                    return res.render("message", {
+                        title: "Already Applied",
+                        message: "You have already applied for the current version of this job.",
+                        backLink: `/worker/jobs?lang=${currentLang}`
+                    });
+                }
+
+                const insertQuery = `
+                    INSERT INTO job_applications (job_id, worker_id, job_version)
+                    VALUES (?, ?, ?)
+                `;
+
+                db.query(insertQuery, [job_id, worker_id, currentVersion], (insertErr) => {
+                    if (insertErr) {
+                        console.log("INSERT APPLY ERROR:", insertErr);
+                        return res.render("message", {
+                            title: "Application Error",
+                            message: "There was a problem while applying for the job.",
+                            backLink: `/worker/jobs?lang=${currentLang}`
+                        });
+                    }
+
+                    const recountQuery = `
+                        SELECT COUNT(*) AS total_applied
+                        FROM job_applications
+                        WHERE job_id = ?
+                          AND job_version = ?
+                          AND application_status IN ('Applied', 'Accepted')
+                    `;
+
+                    db.query(recountQuery, [job_id, currentVersion], (recountErr, recountResult) => {
+                        if (recountErr) {
+                            console.log("RECOUNT ERROR:", recountErr);
+                            return res.render("message", {
+                                title: "Application Submitted",
+                                message: "You have successfully applied for this job.",
+                                backLink: `/worker/jobs?lang=${currentLang}`
+                            });
+                        }
+
+                        const updatedApplied = recountResult[0].total_applied || 0;
+
+                        if (updatedApplied >= job.workers_required) {
+                            const closeQuery = "UPDATE jobs SET status = 'Closed' WHERE id = ?";
+
+                            db.query(closeQuery, [job_id], (closeErr) => {
+                                if (closeErr) {
+                                    console.log("FINAL AUTO CLOSE ERROR:", closeErr);
+                                }
+
+                                return res.render("message", {
+                                    title: "Application Submitted",
+                                    message: `You have successfully applied. This job has now reached ${updatedApplied}/${job.workers_required} workers and has been closed automatically.`,
+                                    backLink: `/worker/jobs?lang=${currentLang}`
+                                });
+                            });
+                        } else {
+                            return res.render("message", {
+                                title: "Application Submitted",
+                                message: `You have successfully applied for this job. Current filled workers: ${updatedApplied}/${job.workers_required}.`,
+                                backLink: `/worker/jobs?lang=${currentLang}`
+                            });
+                        }
+                    });
                 });
             });
         });
@@ -760,6 +908,7 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
         description,
         location,
         wage,
+        workers_required,
         payment_mode,
         start_date,
         end_date
@@ -769,7 +918,7 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
 
     db.query(getVersionQuery, [jobId, farmerId], (versionErr, versionResult) => {
         if (versionErr) {
-            console.log(versionErr);
+            console.log("GET VERSION ERROR:", versionErr);
             return res.render("error", {
                 message: "Error fetching current job version.",
                 backLink: `/farmer/edit-job/${jobId}`
@@ -788,7 +937,17 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
 
         const updateJobQuery = `
             UPDATE jobs
-            SET job_title = ?, category = ?, work_type = ?, description = ?, location = ?, wage = ?, payment_mode = ?, start_date = ?, end_date = ?, version = ?
+            SET job_title = ?,
+                category = ?,
+                work_type = ?,
+                description = ?,
+                location = ?,
+                wage = ?,
+                workers_required = ?,
+                payment_mode = ?,
+                start_date = ?,
+                end_date = ?,
+                version = ?
             WHERE id = ? AND farmer_id = ?
         `;
 
@@ -801,16 +960,17 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
                 description,
                 location,
                 wage,
+                workers_required,
                 payment_mode,
-                start_date,
-                end_date,
+                start_date || null,
+                end_date || null,
                 newVersion,
                 jobId,
                 farmerId
             ],
             (err, result) => {
                 if (err) {
-                    console.log(err);
+                    console.log("UPDATE JOB ERROR:", err);
                     return res.render("error", {
                         message: "Error updating job.",
                         backLink: `/farmer/edit-job/${jobId}`
@@ -819,8 +979,8 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
 
                 const insertVersionQuery = `
                     INSERT INTO job_versions
-                    (job_id, version, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date, restored_from_version)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    (job_id, version, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date, restored_from_version)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
                 `;
 
                 db.query(
@@ -834,13 +994,14 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
                         description,
                         location,
                         wage,
+                        workers_required,
                         payment_mode,
-                        start_date,
-                        end_date
+                        start_date || null,
+                        end_date || null
                     ],
                     (historyErr, historyResult) => {
                         if (historyErr) {
-                            console.log(historyErr);
+                            console.log("INSERT VERSION ERROR:", historyErr);
                             return res.render("error", {
                                 message: "Job updated, but version history could not be saved.",
                                 backLink: "/farmer/dashboard"
@@ -849,7 +1010,7 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
 
                         return res.render("message", {
                             title: "Job Updated",
-                            message: `Your job details were updated successfully. This job is now on version ${newVersion}, and workers can apply again while older applications remain stored.`,
+                            message: `Your job details were updated successfully. This job is now on version ${newVersion}.`,
                             backLink: "/farmer/dashboard"
                         });
                     }
@@ -1177,75 +1338,75 @@ app.post("/farmer/reopen-job/:jobId", (req, res) => {
     });
 });
 
-app.post("/farmer/delete-job/:jobId", (req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
+// app.post("/farmer/delete-job/:jobId", (req, res) => {
+//     if (!req.session.farmer) {
+//         return res.redirect("/farmer/login");
+//     }
 
-    const jobId = req.params.jobId;
-    const farmerId = req.session.farmer.id;
+//     const jobId = req.params.jobId;
+//     const farmerId = req.session.farmer.id;
 
-    const checkQuery = "SELECT * FROM jobs WHERE id = ? AND farmer_id = ?";
+//     const checkQuery = "SELECT * FROM jobs WHERE id = ? AND farmer_id = ?";
 
-    db.query(checkQuery, [jobId, farmerId], (checkErr, checkResult) => {
-        if (checkErr) {
-            console.log(checkErr);
-            return res.render("error", {
-                message: "Error checking job before deletion.",
-                backLink: "/farmer/dashboard"
-            });
-        }
+//     db.query(checkQuery, [jobId, farmerId], (checkErr, checkResult) => {
+//         if (checkErr) {
+//             console.log(checkErr);
+//             return res.render("error", {
+//                 message: "Error checking job before deletion.",
+//                 backLink: "/farmer/dashboard"
+//             });
+//         }
 
-        if (checkResult.length === 0) {
-            return res.render("error", {
-                message: "Job not found or unauthorized access.",
-                backLink: "/farmer/dashboard"
-            });
-        }
+//         if (checkResult.length === 0) {
+//             return res.render("error", {
+//                 message: "Job not found or unauthorized access.",
+//                 backLink: "/farmer/dashboard"
+//             });
+//         }
 
-        const deleteVersionsQuery = "DELETE FROM job_versions WHERE job_id = ?";
+//         const deleteVersionsQuery = "DELETE FROM job_versions WHERE job_id = ?";
 
-        db.query(deleteVersionsQuery, [jobId], (versionErr) => {
-            if (versionErr) {
-                console.log(versionErr);
-                return res.render("error", {
-                    message: "Error deleting job version history.",
-                    backLink: "/farmer/dashboard"
-                });
-            }
+//         db.query(deleteVersionsQuery, [jobId], (versionErr) => {
+//             if (versionErr) {
+//                 console.log(versionErr);
+//                 return res.render("error", {
+//                     message: "Error deleting job version history.",
+//                     backLink: "/farmer/dashboard"
+//                 });
+//             }
 
-            const deleteApplicationsQuery = "DELETE FROM job_applications WHERE job_id = ?";
+//             const deleteApplicationsQuery = "DELETE FROM job_applications WHERE job_id = ?";
 
-            db.query(deleteApplicationsQuery, [jobId], (appErr) => {
-                if (appErr) {
-                    console.log(appErr);
-                    return res.render("error", {
-                        message: "Error deleting job applications.",
-                        backLink: "/farmer/dashboard"
-                    });
-                }
+//             db.query(deleteApplicationsQuery, [jobId], (appErr) => {
+//                 if (appErr) {
+//                     console.log(appErr);
+//                     return res.render("error", {
+//                         message: "Error deleting job applications.",
+//                         backLink: "/farmer/dashboard"
+//                     });
+//                 }
 
-                const deleteJobQuery = "DELETE FROM jobs WHERE id = ? AND farmer_id = ?";
+//                 const deleteJobQuery = "DELETE FROM jobs WHERE id = ? AND farmer_id = ?";
 
-                db.query(deleteJobQuery, [jobId, farmerId], (deleteErr, deleteResult) => {
-                    if (deleteErr) {
-                        console.log(deleteErr);
-                        return res.render("error", {
-                            message: "Error deleting job.",
-                            backLink: "/farmer/dashboard"
-                        });
-                    }
+//                 db.query(deleteJobQuery, [jobId, farmerId], (deleteErr, deleteResult) => {
+//                     if (deleteErr) {
+//                         console.log(deleteErr);
+//                         return res.render("error", {
+//                             message: "Error deleting job.",
+//                             backLink: "/farmer/dashboard"
+//                         });
+//                     }
 
-                    return res.render("message", {
-                        title: "Job Deleted",
-                        message: "The job was deleted successfully. It will no longer appear for workers.",
-                        backLink: "/farmer/dashboard"
-                    });
-                });
-            });
-        });
-    });
-});
+//                     return res.render("message", {
+//                         title: "Job Deleted",
+//                         message: "The job was deleted successfully. It will no longer appear for workers.",
+//                         backLink: "/farmer/dashboard"
+//                     });
+//                 });
+//             });
+//         });
+//     });
+// });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

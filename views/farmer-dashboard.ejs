@@ -100,6 +100,8 @@
                                     <p class="job-detail-line"><strong><%= t('work_type') %>:</strong> <%= job.work_type %></p>
                                     <p class="job-detail-line"><strong><%= t('location') %>:</strong> <%= job.location %></p>
                                     <p class="job-detail-line"><strong><%= t('wage') %>:</strong> ₹<%= job.wage %></p>
+                                    <p class="job-detail-line"><strong>Applications:</strong> <%= job.applied_count || 0 %> / <%= job.workers_required %> workers</p>
+                                    <p class="job-detail-line"><strong><%= t('workers_required') %>:</strong> <%= job.workers_required %></p>
                                     <p class="job-detail-line">
                                         <strong><%= t('status') %>:</strong>
                                         <% if (job.status === 'Open') { %>

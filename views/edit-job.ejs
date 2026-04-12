@@ -84,6 +84,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label><%= t('workers_required') %></label>
+                        <input type="number" name="workers_required" class="form-control" min="1" value="<%= job.workers_required || 1 %>" required>
+                    </div>
+
+                    <div class="mb-3">
                         <label><%= t('payment_mode') %></label>
                         <select name="payment_mode" class="form-select" required>
                             <option value="Cash" <%= job.payment_mode === 'Cash' ? 'selected' : '' %>><%= t('cash') %></option>

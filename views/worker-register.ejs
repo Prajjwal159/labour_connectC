@@ -60,19 +60,44 @@
 
                     <div class="mb-3">
                         <label class="form-label auth-label"><%= t('skill_category') %></label>
-                        <select name="skill_category" class="form-select auth-input" required>
-                            <option value=""><%= t('select_skill') %></option>
-                            <option value="Ploughing">Ploughing</option>
-                            <option value="Planting">Planting</option>
-                            <option value="Harvesting">Harvesting</option>
-                            <option value="Irrigation">Irrigation</option>
-                            <option value="Tractor Driving">Tractor Driving</option>
-                            <option value="Dairy Work">Dairy Work</option>
-                            <option value="Farm Maintenance">Farm Maintenance</option>
-                            <option value="Loading and Packaging">Loading and Packaging</option>
-                        </select>
+                        <div class="skill-checkbox-grid">
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Ploughing" id="skillPloughing">
+                                <label class="form-check-label" for="skillPloughing"><%= t('ploughing') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Planting" id="skillPlanting">
+                                <label class="form-check-label" for="skillPlanting"><%= t('planting') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Harvesting" id="skillHarvesting">
+                                <label class="form-check-label" for="skillHarvesting"><%= t('harvesting') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Irrigation" id="skillIrrigation">
+                                <label class="form-check-label" for="skillIrrigation"><%= t('irrigation') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Tractor Driving" id="skillTractor">
+                                <label class="form-check-label" for="skillTractor"><%= t('tractor_driving') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Dairy Work" id="skillDairy">
+                                <label class="form-check-label" for="skillDairy"><%= t('dairy_work') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Farm Maintenance" id="skillMaintenance">
+                                <label class="form-check-label" for="skillMaintenance"><%= t('farm_maintenance') %></label>
+                            </div>
+                            <div class="form-check skill-check-card">
+                                <input class="form-check-input" type="checkbox" name="skill_category" value="Loading and Packaging" id="skillLoading">
+                                <label class="form-check-label" for="skillLoading"><%= t('loading_packaging') %></label>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <%= t('choose_one_or_more_skills') %>
+                        </small>
                     </div>
-
                     <div class="mb-3">
                         <label class="form-label auth-label"><%= t('experience_level') %></label>
                         <select name="experience_level" class="form-select auth-input">

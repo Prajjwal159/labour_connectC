@@ -37,7 +37,8 @@
     <div class="soft-card p-4 mb-4">
         <h4 class="mb-3"><%= t('filter_jobs') %></h4>
         <p class="premium-subtitle mb-4">
-            <%= t('your_skill_category') %>: <strong><%= workerSkill || 'N/A' %></strong>
+            <%= t('your_skill_category') %>: 
+            <strong><%= workerSkills && workerSkills.length ? workerSkills.join(", ") : 'N/A' %></strong>
         </p>
         <form action="/worker/jobs" method="GET">
             <input type="hidden" name="lang" value="<%= currentLang %>">
@@ -132,6 +133,8 @@
                             <p class="job-detail-line"><strong><%= t('wage') %>:</strong> ₹<%= job.wage %></p>
                             <p class="job-detail-line"><strong><%= t('start_date') %>:</strong> <%= job.start_date ? job.start_date.toISOString().split('T')[0] : 'N/A' %></p>
                             <p class="job-detail-line"><strong><%= t('end_date') %>:</strong> <%= job.end_date ? job.end_date.toISOString().split('T')[0] : 'N/A' %></p>
+                            <p class="job-detail-line"><strong><%= t('workers_required') %>:</strong> <%= job.workers_required %></p>
+                            <p class="job-detail-line"><strong>Workers Filled:</strong> <%= job.applied_count || 0 %> / <%= job.workers_required %></p>
 
                             <form action="/worker/apply/<%= job.id %>?lang=<%= currentLang %>" method="POST" class="mt-3">
                                 <button type="submit" class="btn pretty-btn-green w-100"><%= t('apply_now') %></button>

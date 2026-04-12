@@ -1086,3 +1086,44 @@ body {
     background: linear-gradient(135deg, #d32f2f, #b71c1c);
     transform: translateY(-2px);
 }
+
+.skill-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.skill-check-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid rgba(120, 140, 120, 0.22);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    transition: all 0.2s ease;
+    min-height: 58px;
+}
+
+.skill-check-card:hover {
+    border-color: rgba(33, 115, 70, 0.35);
+    box-shadow: 0 10px 24px rgba(20, 80, 40, 0.08);
+}
+
+.skill-check-card .form-check-input {
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
+.skill-check-card .form-check-label {
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .skill-checkbox-grid {
+        grid-template-columns: 1fr;
+    }
+}
