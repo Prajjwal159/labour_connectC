@@ -5,6 +5,7 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
 const db = require("./config/db");
+const translations = require("./locales/translations");
 const app = express();
 
 // Middleware
@@ -16,6 +17,17 @@ app.use(session({
     resave: false,
     saveUninitialized: true
 }));
+
+app.use((req, res, next) => {
+    const lang = req.query.lang === "kn" ? "kn" : "en";
+
+    res.locals.currentLang = lang;
+    res.locals.t = (key) => {
+        return translations[lang][key] || key;
+    };
+
+    next();
+});
 
 // Static files
 app.use(express.static(path.join(__dirname, "public")));
@@ -314,15 +326,60 @@ app.get("/worker/jobs", (req, res) => {
         return res.redirect("/worker/login");
     }
 
-    const query = "SELECT * FROM jobs WHERE status = 'Open' ORDER BY created_at DESC";
+    const {
+        location = "",
+        category = "",
+        work_type = "",
+        min_wage = "",
+        payment_mode = ""
+    } = req.query;
 
-    db.query(query, (err, results) => {
+    let query = "SELECT * FROM jobs WHERE status = 'Open'";
+    const params = [];
+
+    if (location) {
+        query += " AND location LIKE ?";
+        params.push(`%${location}%`);
+    }
+
+    if (category) {
+        query += " AND category = ?";
+        params.push(category);
+    }
+
+    if (work_type) {
+        query += " AND work_type = ?";
+        params.push(work_type);
+    }
+
+    if (min_wage) {
+        query += " AND wage >= ?";
+        params.push(min_wage);
+    }
+
+    if (payment_mode) {
+        query += " AND payment_mode = ?";
+        params.push(payment_mode);
+    }
+
+    query += " ORDER BY created_at DESC";
+
+    db.query(query, params, (err, results) => {
         if (err) {
             console.log(err);
             return res.send("Error fetching jobs.");
         }
 
-        res.render("worker-jobs", { jobs: results });
+        res.render("worker-jobs", {
+            jobs: results,
+            filters: {
+                location,
+                category,
+                work_type,
+                min_wage,
+                payment_mode
+            }
+        });
     });
 });
 

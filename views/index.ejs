@@ -1,54 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= currentLang %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Namma Raitha Jobs</title>
+    <title><%= t('app_name') %></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="landing-body">
 
-    <!-- HERO SECTION -->
     <section class="hero-wrapper">
         <div class="hero-overlay"></div>
 
-        <!-- NAVBAR -->
         <nav class="navbar navbar-expand-lg landing-nav">
             <div class="container">
-                <a class="navbar-brand brand-logo" href="/">🌾 Namma Raitha Jobs</a>
+                <a class="navbar-brand brand-logo" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
 
                 <div class="nav-pill d-none d-lg-flex">
-                    <a href="/" class="active">Home</a>
-                    <a href="#about">About Us</a>
-                    <a href="#solutions">Solutions</a>
-                    <a href="#impact">Impact</a>
-                    <a href="#access">Access</a>
+                    <a href="/?lang=<%= currentLang %>" class="active"><%= t('home') %></a>
+                    <a href="#about"><%= t('about_us') %></a>
+                    <a href="#solutions"><%= t('solutions') %></a>
+                    <a href="#impact"><%= t('impact') %></a>
+                    <a href="#access"><%= t('access') %></a>
                 </div>
 
-                <div>
-                    <a href="/farmer/login" class="btn nav-contact-btn">Login</a>
+                <div class="d-flex gap-2">
+                    <a href="?lang=en" class="btn btn-sm btn-light">English</a>
+                    <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
+                    <a href="/farmer/login?lang=<%= currentLang %>" class="btn nav-contact-btn"><%= t('login') %></a>
                 </div>
             </div>
         </nav>
 
-        <!-- HERO CONTENT -->
         <div class="container hero-content">
             <div class="row align-items-center min-vh-100">
                 <div class="col-lg-7">
                     <div class="hero-text-box">
-                        <p class="hero-mini-tag">Digital Agriculture Workforce Platform</p>
+                        <p class="hero-mini-tag"><%= t('hero_tagline') %></p>
                         <h1 class="hero-title">
-                            Smart Farming Jobs for
-                            <span>Future Generations</span>
+                            <%= t('hero_title_line1') %>
+                            <span><%= t('hero_title_line2') %></span>
                         </h1>
                         <p class="hero-subtitle">
-                            Namma Raitha Jobs connects farmers and rural workers through a structured digital platform for hourly, daily, weekly, monthly, and seasonal agricultural hiring.
+                            <%= t('hero_subtitle') %>
                         </p>
 
                         <div class="hero-buttons mt-4">
-                            <a href="/farmer/register" class="btn btn-hero-primary">Start as Farmer ↗</a>
-                            <a href="/worker/register" class="btn btn-hero-secondary">Join as Worker</a>
+                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn btn-hero-primary"><%= t('start_as_farmer') %> ↗</a>
+                            <a href="/worker/register?lang=<%= currentLang %>" class="btn btn-hero-secondary"><%= t('join_as_worker') %></a>
                         </div>
                     </div>
                 </div>
@@ -58,27 +57,27 @@
                         <div class="hero-stat-row">
                             <div>
                                 <h5>140M+</h5>
-                                <p>Farmers in India</p>
+                                <p><%= t('farmers_in_india') %></p>
                             </div>
                             <div>
-                                <h5>5 Types</h5>
-                                <p>Flexible Hiring Modes</p>
+                                <h5>5 <%= t('types_short') %></h5>
+                                <p><%= t('flexible_hiring_modes') %></p>
                             </div>
                         </div>
 
                         <div class="hero-stat-row">
                             <div>
-                                <h5>2 Roles</h5>
-                                <p>Farmers & Workers</p>
+                                <h5>2 <%= t('roles_short') %></h5>
+                                <p><%= t('farmers_workers') %></p>
                             </div>
                             <div>
-                                <h5>Rural First</h5>
-                                <p>Built for accessibility</p>
+                                <h5><%= t('rural_first') %></h5>
+                                <p><%= t('built_for_accessibility') %></p>
                             </div>
                         </div>
 
                         <div class="hero-side-note">
-                            Supports job posting, worker applications, multilingual access, and future voice input integration.
+                            <%= t('hero_side_note') %>
                         </div>
                     </div>
                 </div>
@@ -86,34 +85,32 @@
         </div>
     </section>
 
-    <!-- TRUST SECTION -->
     <section class="trusted-strip">
         <div class="container">
             <div class="row align-items-center text-center gy-3">
                 <div class="col-lg-3 text-lg-start">
-                    <p class="trusted-text mb-0">Designed to support rural hiring, agriculture, and farm workforce management</p>
+                    <p class="trusted-text mb-0"><%= t('trusted_strip_text') %></p>
                 </div>
                 <div class="col-lg-9">
                     <div class="brand-strip">
-                        <span>Farm Hiring</span>
-                        <span>Rural Jobs</span>
-                        <span>Seasonal Work</span>
-                        <span>Digital Access</span>
-                        <span>Agri Workforce</span>
+                        <span><%= t('farm_hiring') %></span>
+                        <span><%= t('rural_jobs') %></span>
+                        <span><%= t('seasonal_work') %></span>
+                        <span><%= t('digital_access') %></span>
+                        <span><%= t('agri_workforce') %></span>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ABOUT SECTION -->
     <section class="section-space bg-white" id="about">
         <div class="container">
-            <div class="section-label">Cultivating Opportunity</div>
+            <div class="section-label"><%= t('cultivating_opportunity') %></div>
             <div class="row align-items-center gy-5">
                 <div class="col-lg-8">
                     <h2 class="big-section-heading">
-                        Our platform is built to support farmers, rural workers, and agricultural communities by delivering practical digital tools that reduce hiring delays and improve livelihood opportunities.
+                        <%= t('about_big_text') %>
                     </h2>
                 </div>
                 <div class="col-lg-4">
@@ -125,32 +122,31 @@
         </div>
     </section>
 
-    <!-- SOLUTIONS SECTION -->
     <section class="section-space soft-section" id="solutions">
         <div class="container">
             <div class="row gy-4 align-items-start">
                 <div class="col-lg-6">
-                    <div class="section-label">About Namma Raitha Jobs</div>
+                    <div class="section-label"><%= t('about_app') %></div>
                     <h2 class="solution-title">
-                        Smart Farming Solutions
-                        <span>That Deliver Real Results</span>
+                        <%= t('solutions_title_1') %>
+                        <span><%= t('solutions_title_2') %></span>
                     </h2>
 
                     <div class="solution-feature active-feature">
                         <div class="feature-top">
                             <span>🌱</span>
-                            <strong>Structured Agricultural Hiring</strong>
+                            <strong><%= t('structured_hiring') %></strong>
                             <span>—</span>
                         </div>
                         <p>
-                            Farmers can post jobs based on hourly, daily, weekly, monthly, or seasonal requirements, helping them find the right labor at the right time.
+                            <%= t('structured_hiring_text') %>
                         </p>
                     </div>
 
                     <div class="solution-feature">
                         <div class="feature-top">
                             <span>👨‍🌾</span>
-                            <strong>Worker Opportunity Access</strong>
+                            <strong><%= t('worker_opportunity_access') %></strong>
                             <span>+</span>
                         </div>
                     </div>
@@ -158,7 +154,7 @@
                     <div class="solution-feature">
                         <div class="feature-top">
                             <span>🌐</span>
-                            <strong>Multilingual & Rural-Friendly Design</strong>
+                            <strong><%= t('multilingual_rural_design') %></strong>
                             <span>+</span>
                         </div>
                     </div>
@@ -166,7 +162,7 @@
 
                 <div class="col-lg-6">
                     <p class="solution-side-text">
-                        Our intelligent workforce platform helps reduce labor shortages during peak farming seasons, improves job visibility for workers, and builds a more transparent ecosystem for rural employment.
+                        <%= t('solutions_side_text') %>
                     </p>
 
                     <div class="solution-image-card">
@@ -177,55 +173,53 @@
         </div>
     </section>
 
-    <!-- IMPACT SECTION -->
     <section class="section-space bg-white" id="impact">
         <div class="container">
-            <div class="section-label">Platform Impact</div>
+            <div class="section-label"><%= t('platform_impact') %></div>
             <div class="row g-4">
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">⏱️</div>
-                        <h4>Faster Hiring</h4>
-                        <p>Reduce delays in finding workers during sowing, planting, and harvesting periods.</p>
+                        <h4><%= t('faster_hiring') %></h4>
+                        <p><%= t('faster_hiring_text') %></p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">💼</div>
-                        <h4>Job Stability</h4>
-                        <p>Workers can discover more opportunities and track applications in one place.</p>
+                        <h4><%= t('job_stability') %></h4>
+                        <p><%= t('job_stability_text') %></p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">📱</div>
-                        <h4>Digital Inclusion</h4>
-                        <p>Multilingual, simple, and rural-focused design supports accessible technology adoption.</p>
+                        <h4><%= t('digital_inclusion') %></h4>
+                        <p><%= t('digital_inclusion_text') %></p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ACCESS SECTION -->
     <section class="section-space soft-section" id="access">
         <div class="container">
             <div class="row align-items-center gy-4">
                 <div class="col-lg-6">
-                    <h2 class="access-title">Get started with the platform</h2>
+                    <h2 class="access-title"><%= t('get_started_title') %></h2>
                     <p class="access-text">
-                        Choose your role and start using the system. Farmers can post jobs and review applicants. Workers can browse available farm jobs and apply instantly.
+                        <%= t('get_started_text') %>
                     </p>
                 </div>
                 <div class="col-lg-6">
                     <div class="access-card">
                         <div class="access-btn-grid">
-                            <a href="/farmer/register" class="btn access-main-btn">Farmer Register</a>
-                            <a href="/farmer/login" class="btn access-outline-btn">Farmer Login</a>
-                            <a href="/worker/register" class="btn access-main-btn blue-btn">Worker Register</a>
-                            <a href="/worker/login" class="btn access-outline-btn blue-outline">Worker Login</a>
+                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn access-main-btn"><%= t('farmer_register') %></a>
+                            <a href="/farmer/login?lang=<%= currentLang %>" class="btn access-outline-btn"><%= t('farmer_login') %></a>
+                            <a href="/worker/register?lang=<%= currentLang %>" class="btn access-main-btn blue-btn"><%= t('worker_register') %></a>
+                            <a href="/worker/login?lang=<%= currentLang %>" class="btn access-outline-btn blue-outline"><%= t('worker_login') %></a>
                         </div>
                     </div>
                 </div>
