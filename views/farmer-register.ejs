@@ -63,6 +63,16 @@
                         <input type="email" name="email" class="form-control auth-input" required autocomplete="email">
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label auth-label">Choose Subscription Plan</label>
+                        <select name="subscription_plan" class="form-select auth-input" required>
+                            <option value="">Select Plan</option>
+                            <option value="59|3">₹59 - 3 Months</option>
+                            <option value="69|5">₹69 - 5 Months</option>
+                            <option value="79|6">₹79 - 6 Months</option>
+                        </select>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label auth-label"><%= t('password') %></label>
                         <input type="password" name="password" class="form-control auth-input" required autocomplete="new-password">

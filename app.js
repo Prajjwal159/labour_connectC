@@ -6,6 +6,25 @@ const bcrypt = require("bcryptjs");
 require("dotenv").config();
 const db = require("./config/db");
 const translations = require("./locales/translations");
+const os = require("os");
+const crypto = require("crypto");
+
+const fakePayments = {};
+
+function getLocalIp() {
+    const nets = os.networkInterfaces();
+
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name]) {
+            if (net.family === "IPv4" && !net.internal) {
+                return net.address;
+            }
+        }
+    }
+
+    return "localhost";
+}
+
 const app = express();
 
 // Middleware
@@ -158,39 +177,187 @@ app.get("/farmer/post-job", (req, res) => {
 
 app.post("/farmer/register", async (req, res) => {
     try {
-        const { full_name, phone, village, email, password } = req.body;
+        const { full_name, phone, village, email, password, subscription_plan } = req.body;
+        const currentLang = req.query.lang || "en";
 
         const checkQuery = "SELECT * FROM farmers WHERE email = ?";
+
         db.query(checkQuery, [email], async (err, result) => {
             if (err) {
-                console.log(err);
-                return res.send("Database error while checking farmer.");
+                console.log("REGISTER CHECK ERROR:", err);
+                return res.render("error", {
+                    message: "Database error while checking farmer.",
+                    backLink: `/farmer/register?lang=${currentLang}`
+                });
             }
 
             if (result.length > 0) {
-                return res.send("Email already registered.");
+                return res.render("error", {
+                    message: "Email already registered.",
+                    backLink: `/farmer/register?lang=${currentLang}`
+                });
+            }
+
+            if (!subscription_plan) {
+                return res.render("error", {
+                    message: "Please select a subscription plan.",
+                    backLink: `/farmer/register?lang=${currentLang}`
+                });
+            }
+
+            const [amount, months] = subscription_plan.split("|");
+            const token = crypto.randomBytes(16).toString("hex");
+
+            req.session.pendingFarmer = {
+                full_name,
+                phone,
+                village,
+                email,
+                password,
+                subscription_amount: amount,
+                subscription_months: months,
+                subscription_plan_label: `${amount} - ${months} months`,
+                currentLang,
+                paymentToken: token
+            };
+
+            fakePayments[token] = {
+                status: "pending",
+                createdAt: Date.now()
+            };
+
+            return res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
+        });
+    } catch (error) {
+        console.log("REGISTER ROUTE ERROR:", error);
+        return res.render("error", {
+            message: "Server error.",
+            backLink: "/farmer/register"
+        });
+    }
+});
+
+app.get("/farmer/subscription-payment", (req, res) => {
+    if (!req.session.pendingFarmer) {
+        return res.redirect(`/farmer/register?lang=${req.query.lang || "en"}`);
+    }
+
+    const currentLang = req.query.lang || req.session.pendingFarmer.currentLang || "en";
+    const token = req.session.pendingFarmer.paymentToken;
+
+    // PUT YOUR REAL LAPTOP IP HERE
+    const laptopIp = "192.168.0.1";
+
+    const paymentUrl = `http://${laptopIp}:5000/farmer/demo-pay/${token}?lang=${currentLang}`;
+
+    res.render("farmer-subscription-payment", {
+        farmerData: req.session.pendingFarmer,
+        paymentUrl,
+        paymentToken: token
+    });
+});
+
+app.post("/farmer/confirm-payment", async (req, res) => {
+    try {
+        if (!req.session.pendingFarmer) {
+            return res.redirect(`/farmer/register?lang=${req.query.lang || "en"}`);
+        }
+
+        const {
+            full_name,
+            phone,
+            village,
+            email,
+            password,
+            subscription_amount,
+            subscription_months,
+            subscription_plan_label,
+            currentLang
+        } = req.session.pendingFarmer;
+
+        const checkQuery = "SELECT * FROM farmers WHERE email = ?";
+
+        db.query(checkQuery, [email], async (checkErr, checkResult) => {
+            if (checkErr) {
+                console.log("CONFIRM PAYMENT CHECK ERROR:", checkErr);
+                return res.render("error", {
+                    message: "Error checking farmer account before payment confirmation.",
+                    backLink: `/farmer/register?lang=${currentLang || "en"}`
+                });
+            }
+
+            if (checkResult.length > 0) {
+                req.session.pendingFarmer = null;
+                return res.render("error", {
+                    message: "This email is already registered.",
+                    backLink: `/farmer/login?lang=${currentLang || "en"}`
+                });
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
 
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
+
             const insertQuery = `
-                INSERT INTO farmers (full_name, phone, village, email, password)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO farmers
+                (
+                    full_name,
+                    phone,
+                    village,
+                    email,
+                    password,
+                    subscription_plan,
+                    subscription_amount,
+                    subscription_months,
+                    subscription_status,
+                    subscription_start_date,
+                    subscription_end_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
-            db.query(insertQuery, [full_name, phone, village, email, hashedPassword], (err, data) => {
-                if (err) {
-                    console.log(err);
-                    return res.send("Error registering farmer.");
+            db.query(
+                insertQuery,
+                [
+                    full_name,
+                    phone,
+                    village,
+                    email,
+                    hashedPassword,
+                    subscription_plan_label,
+                    parseFloat(subscription_amount),
+                    parseInt(subscription_months),
+                    "Paid",
+                    startDate.toISOString().split("T")[0],
+                    endDate.toISOString().split("T")[0]
+                ],
+                (err) => {
+                    if (err) {
+                        console.log("CONFIRM PAYMENT INSERT ERROR:", err);
+                        return res.render("error", {
+                            message: "Error creating farmer account after payment.",
+                            backLink: `/farmer/register?lang=${currentLang || "en"}`
+                        });
+                    }
+
+                    req.session.pendingFarmer = null;
+
+                    return res.render("message", {
+                        title: "Registration Successful",
+                        message: "Demo payment successful. Your farmer account has been created.",
+                        backLink: `/farmer/login?lang=${currentLang || "en"}`
+                    });
                 }
-
-                res.redirect("/farmer/login");
-            });
+            );
         });
-
     } catch (error) {
-        console.log(error);
-        res.send("Server error.");
+        console.log("CONFIRM PAYMENT ROUTE ERROR:", error);
+        return res.render("error", {
+            message: "Server error.",
+            backLink: "/farmer/register"
+        });
     }
 });
 
@@ -1409,6 +1576,12 @@ app.post("/farmer/reopen-job/:jobId", (req, res) => {
 // });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+
+// Start server on all networks (important)
+app.listen(PORT, "0.0.0.0", () => {
+    console.log("=================================");
+    console.log(`🚀 Server running on:`);
+    console.log(`👉 Local:   http://localhost:${PORT}`);
+    console.log(`👉 Network: http://127.0.0.1:${PORT}`);
+    console.log("=================================");
 });
