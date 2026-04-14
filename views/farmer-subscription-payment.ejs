@@ -28,24 +28,62 @@
 
                 <div class="mb-4">
                     <img
-                        src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=DEMO_PAYMENT_<%= farmerData.subscription_amount %>"
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=<%= encodeURIComponent('http://10.192.195.208:5000/farmer/demo-pay/' + paymentToken + '?lang=' + currentLang) %>"
                         alt="Demo QR Payment"
                         class="img-fluid"
                         style="border-radius:18px; border:1px solid #ddd;"
                     >
                 </div>
 
-                <p class="text-muted mb-4">
-                    This is a demo payment page for project presentation.
+                <p class="text-muted mb-2">
+                    Scan this QR from your phone on the same Wi-Fi.
                 </p>
 
-                <form action="/farmer/confirm-payment?lang=<%= currentLang %>" method="POST" class="d-flex justify-content-center gap-2 flex-wrap">
-                    <button type="submit" class="btn pretty-btn-green">Complete Demo Payment</button>
-                    <a href="/farmer/register?lang=<%= currentLang %>" class="btn pretty-btn-outline">Cancel</a>
-                </form>
+                <p class="text-muted mb-3">
+                    After payment is completed on phone, this page will redirect automatically.
+                </p>
+
+                <p class="mb-4">
+                    <a href="http://10.192.195.208:5000/farmer/demo-pay/<%= paymentToken %>?lang=<%= currentLang %>" target="_blank">
+                        Open payment link manually
+                    </a>
+                </p>
+
+                <div id="paymentStatus" class="alert alert-warning mb-0">
+                    Waiting for payment...
+                </div>
             </div>
         </div>
     </div>
 </div>
+<script>
+    let paymentHandled = false;
+
+    setInterval(async () => {
+        try {
+            const res = await fetch("/check-payment-status");
+            const data = await res.json();
+
+            const statusBox = document.getElementById("paymentStatus");
+
+            if (data.status === "done" && !paymentHandled) {
+                paymentHandled = true;
+                statusBox.className = "alert alert-success mb-0";
+                statusBox.textContent = "Payment detected. Finalizing account...";
+
+                const confirmRes = await fetch("/farmer/confirm-payment?lang=<%= currentLang %>", {
+                    method: "POST"
+                });
+
+                const html = await confirmRes.text();
+                document.open();
+                document.write(html);
+                document.close();
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    }, 2000);
+</script>
 </body>
 </html>

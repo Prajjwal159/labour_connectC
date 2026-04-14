@@ -245,15 +245,16 @@ app.get("/farmer/subscription-payment", (req, res) => {
     const currentLang = req.query.lang || req.session.pendingFarmer.currentLang || "en";
     const token = req.session.pendingFarmer.paymentToken;
 
-    // PUT YOUR REAL LAPTOP IP HERE
-    const laptopIp = "192.168.0.1";
+    // correct laptop IP
+    const laptopIp = "10.192.195.208";
 
     const paymentUrl = `http://${laptopIp}:5000/farmer/demo-pay/${token}?lang=${currentLang}`;
 
     res.render("farmer-subscription-payment", {
         farmerData: req.session.pendingFarmer,
         paymentUrl,
-        paymentToken: token
+        paymentToken: token,
+        currentLang
     });
 });
 
@@ -272,8 +273,16 @@ app.post("/farmer/confirm-payment", async (req, res) => {
             subscription_amount,
             subscription_months,
             subscription_plan_label,
-            currentLang
+            currentLang,
+            paymentToken
         } = req.session.pendingFarmer;
+
+        if (!fakePayments[paymentToken] || fakePayments[paymentToken].status !== "done") {
+            return res.render("error", {
+                message: "Payment not completed yet.",
+                backLink: `/farmer/subscription-payment?lang=${currentLang || "en"}`
+            });
+        }
 
         const checkQuery = "SELECT * FROM farmers WHERE email = ?";
 
@@ -288,6 +297,7 @@ app.post("/farmer/confirm-payment", async (req, res) => {
 
             if (checkResult.length > 0) {
                 req.session.pendingFarmer = null;
+                delete fakePayments[paymentToken];
                 return res.render("error", {
                     message: "This email is already registered.",
                     backLink: `/farmer/login?lang=${currentLang || "en"}`
@@ -343,6 +353,7 @@ app.post("/farmer/confirm-payment", async (req, res) => {
                     }
 
                     req.session.pendingFarmer = null;
+                    delete fakePayments[paymentToken];
 
                     return res.render("message", {
                         title: "Registration Successful",
@@ -359,6 +370,43 @@ app.post("/farmer/confirm-payment", async (req, res) => {
             backLink: "/farmer/register"
         });
     }
+});
+
+app.get("/farmer/demo-pay/:token", (req, res) => {
+    const token = req.params.token;
+    const currentLang = req.query.lang || "en";
+
+    if (!fakePayments[token]) {
+        return res.render("error", {
+            message: "Invalid payment link.",
+            backLink: `/farmer/register?lang=${currentLang}`
+        });
+    }
+
+    res.render("farmer-demo-pay", {
+        token,
+        currentLang
+    });
+});
+
+app.post("/farmer/demo-pay/:token", (req, res) => {
+    const token = req.params.token;
+    const currentLang = req.query.lang || "en";
+
+    if (!fakePayments[token]) {
+        return res.render("error", {
+            message: "Invalid payment link.",
+            backLink: `/farmer/register?lang=${currentLang}`
+        });
+    }
+
+    fakePayments[token].status = "done";
+
+    return res.render("message", {
+        title: "Payment Successful",
+        message: "Demo payment completed successfully. Return to the laptop screen.",
+        backLink: `/?lang=${currentLang}`
+    });
 });
 
 app.get("/farmer/dashboard", (req, res) => {
@@ -1575,7 +1623,25 @@ app.post("/farmer/reopen-job/:jobId", (req, res) => {
 //     });
 // });
 
+app.get("/test-phone", (req, res) => {
+    res.send("Phone reached laptop server successfully");
+});
+
 const PORT = process.env.PORT || 5000;
+
+app.get("/check-payment-status", (req, res) => {
+    if (!req.session.pendingFarmer || !req.session.pendingFarmer.paymentToken) {
+        return res.json({ status: "pending" });
+    }
+
+    const token = req.session.pendingFarmer.paymentToken;
+
+    if (fakePayments[token] && fakePayments[token].status === "done") {
+        return res.json({ status: "done" });
+    }
+
+    return res.json({ status: "pending" });
+});
 
 // Start server on all networks (important)
 app.listen(PORT, "0.0.0.0", () => {
