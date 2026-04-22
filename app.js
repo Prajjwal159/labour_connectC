@@ -25,6 +25,31 @@ function getLocalIp() {
     return "localhost";
 }
 
+function checkSubscription(req, res, next) {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const farmer = req.session.farmer;
+
+    if (!farmer.subscription_end_date) {
+        return next();
+    }
+
+    const today = new Date();
+    const expiry = new Date(farmer.subscription_end_date);
+
+    if (today > expiry) {
+        return res.render("message", {
+            title: "Subscription Expired",
+            message: "Your subscription has expired. Please renew to continue using the platform.",
+            backLink: "/"
+            });
+    }
+
+    next();
+}
+
 const app = express();
 
 // Middleware
@@ -98,7 +123,13 @@ app.post("/farmer/login", (req, res) => {
             full_name: farmer.full_name,
             email: farmer.email,
             phone: farmer.phone,
-            village: farmer.village
+            village: farmer.village,
+            subscription_plan: farmer.subscription_plan,
+            subscription_amount: farmer.subscription_amount,
+            subscription_months: farmer.subscription_months,
+            subscription_status: farmer.subscription_status,
+            subscription_start_date: farmer.subscription_start_date,
+            subscription_end_date: farmer.subscription_end_date
         };
 
         res.redirect("/farmer/dashboard");
@@ -167,7 +198,7 @@ app.get("/worker/register", (req, res) => {
     res.render("worker-register");
 });
 
-app.get("/farmer/post-job", (req, res) => {
+app.get("/farmer/post-job", checkSubscription,(req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -175,40 +206,22 @@ app.get("/farmer/post-job", (req, res) => {
     res.render("post-job");
 });
 
-app.post("/farmer/register", async (req, res) => {
+app.post("/farmer/register", (req, res) => {
     try {
         const { full_name, phone, village, email, password, subscription_plan } = req.body;
         const currentLang = req.query.lang || "en";
 
-        const checkQuery = "SELECT * FROM farmers WHERE email = ?";
+        if (!subscription_plan) {
+            return res.send("Select subscription plan");
+        }
 
-        db.query(checkQuery, [email], async (err, result) => {
-            if (err) {
-                console.log("REGISTER CHECK ERROR:", err);
-                return res.render("error", {
-                    message: "Database error while checking farmer.",
-                    backLink: `/farmer/register?lang=${currentLang}`
-                });
-            }
+        const [amount, months] = subscription_plan.split("|");
 
-            if (result.length > 0) {
-                return res.render("error", {
-                    message: "Email already registered.",
-                    backLink: `/farmer/register?lang=${currentLang}`
-                });
-            }
+        const token = crypto.randomBytes(16).toString("hex");
 
-            if (!subscription_plan) {
-                return res.render("error", {
-                    message: "Please select a subscription plan.",
-                    backLink: `/farmer/register?lang=${currentLang}`
-                });
-            }
-
-            const [amount, months] = subscription_plan.split("|");
-            const token = crypto.randomBytes(16).toString("hex");
-
-            req.session.pendingFarmer = {
+        fakePayments[token] = {
+            status: "pending",
+            data: {
                 full_name,
                 phone,
                 village,
@@ -217,41 +230,36 @@ app.post("/farmer/register", async (req, res) => {
                 subscription_amount: amount,
                 subscription_months: months,
                 subscription_plan_label: `${amount} - ${months} months`,
-                currentLang,
-                paymentToken: token
-            };
+                currentLang
+            }
+        };
 
-            fakePayments[token] = {
-                status: "pending",
-                createdAt: Date.now()
-            };
+        req.session.paymentToken = token;
 
-            return res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
-        });
-    } catch (error) {
-        console.log("REGISTER ROUTE ERROR:", error);
-        return res.render("error", {
-            message: "Server error.",
-            backLink: "/farmer/register"
-        });
+        res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
+
+    } catch (err) {
+        console.log("REGISTER ERROR:", err);
+        res.send("Error in register");
     }
 });
 
 app.get("/farmer/subscription-payment", (req, res) => {
-    if (!req.session.pendingFarmer) {
-        return res.redirect(`/farmer/register?lang=${req.query.lang || "en"}`);
+    const token = req.session.paymentToken;
+    const currentLang = req.query.lang || "en";
+
+    if (!token || !fakePayments[token]) {
+        return res.redirect(`/farmer/register?lang=${currentLang}`);
     }
 
-    const currentLang = req.query.lang || req.session.pendingFarmer.currentLang || "en";
-    const token = req.session.pendingFarmer.paymentToken;
+    const farmerData = fakePayments[token].data;
 
-    // correct laptop IP
-    const laptopIp = "10.192.195.208";
+    const laptopIp = "10.192.195.208"; // keep your IP
 
     const paymentUrl = `http://${laptopIp}:5000/farmer/demo-pay/${token}?lang=${currentLang}`;
 
     res.render("farmer-subscription-payment", {
-        farmerData: req.session.pendingFarmer,
+        farmerData,
         paymentUrl,
         paymentToken: token,
         currentLang
@@ -260,9 +268,23 @@ app.get("/farmer/subscription-payment", (req, res) => {
 
 app.post("/farmer/confirm-payment", async (req, res) => {
     try {
-        if (!req.session.pendingFarmer) {
-            return res.redirect(`/farmer/register?lang=${req.query.lang || "en"}`);
+        const { token } = req.body;
+
+        if (!token || !fakePayments[token]) {
+            return res.render("error", {
+                message: "Invalid payment session.",
+                backLink: "/farmer/register"
+            });
         }
+
+        if (fakePayments[token].status !== "done") {
+            return res.render("error", {
+                message: "Payment not completed yet.",
+                backLink: "/farmer/register"
+            });
+        }
+
+        const data = fakePayments[token].data;
 
         const {
             full_name,
@@ -273,99 +295,70 @@ app.post("/farmer/confirm-payment", async (req, res) => {
             subscription_amount,
             subscription_months,
             subscription_plan_label,
-            currentLang,
-            paymentToken
-        } = req.session.pendingFarmer;
+            currentLang
+        } = data;
 
-        if (!fakePayments[paymentToken] || fakePayments[paymentToken].status !== "done") {
-            return res.render("error", {
-                message: "Payment not completed yet.",
-                backLink: `/farmer/subscription-payment?lang=${currentLang || "en"}`
-            });
-        }
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        const checkQuery = "SELECT * FROM farmers WHERE email = ?";
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
 
-        db.query(checkQuery, [email], async (checkErr, checkResult) => {
-            if (checkErr) {
-                console.log("CONFIRM PAYMENT CHECK ERROR:", checkErr);
-                return res.render("error", {
-                    message: "Error checking farmer account before payment confirmation.",
-                    backLink: `/farmer/register?lang=${currentLang || "en"}`
-                });
-            }
+        const insertQuery = `
+            INSERT INTO farmers
+            (
+                full_name,
+                phone,
+                village,
+                email,
+                password,
+                subscription_plan,
+                subscription_amount,
+                subscription_months,
+                subscription_status,
+                subscription_start_date,
+                subscription_end_date
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
-            if (checkResult.length > 0) {
-                req.session.pendingFarmer = null;
-                delete fakePayments[paymentToken];
-                return res.render("error", {
-                    message: "This email is already registered.",
-                    backLink: `/farmer/login?lang=${currentLang || "en"}`
-                });
-            }
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
-
-            const insertQuery = `
-                INSERT INTO farmers
-                (
-                    full_name,
-                    phone,
-                    village,
-                    email,
-                    password,
-                    subscription_plan,
-                    subscription_amount,
-                    subscription_months,
-                    subscription_status,
-                    subscription_start_date,
-                    subscription_end_date
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-
-            db.query(
-                insertQuery,
-                [
-                    full_name,
-                    phone,
-                    village,
-                    email,
-                    hashedPassword,
-                    subscription_plan_label,
-                    parseFloat(subscription_amount),
-                    parseInt(subscription_months),
-                    "Paid",
-                    startDate.toISOString().split("T")[0],
-                    endDate.toISOString().split("T")[0]
-                ],
-                (err) => {
-                    if (err) {
-                        console.log("CONFIRM PAYMENT INSERT ERROR:", err);
-                        return res.render("error", {
-                            message: "Error creating farmer account after payment.",
-                            backLink: `/farmer/register?lang=${currentLang || "en"}`
-                        });
-                    }
-
-                    req.session.pendingFarmer = null;
-                    delete fakePayments[paymentToken];
-
-                    return res.render("message", {
-                        title: "Registration Successful",
-                        message: "Demo payment successful. Your farmer account has been created.",
-                        backLink: `/farmer/login?lang=${currentLang || "en"}`
+        db.query(
+            insertQuery,
+            [
+                full_name,
+                phone,
+                village,
+                email,
+                hashedPassword,
+                subscription_plan_label,
+                subscription_amount,
+                subscription_months,
+                "Paid",
+                startDate.toISOString().split("T")[0],
+                endDate.toISOString().split("T")[0]
+            ],
+            (err) => {
+                if (err) {
+                    console.log(err);
+                    return res.render("error", {
+                        message: "DB error while creating farmer.",
+                        backLink: "/farmer/register"
                     });
                 }
-            );
-        });
+
+                delete fakePayments[token];
+
+                return res.render("message", {
+                    title: "Success",
+                    message: "Payment done. Farmer account created.",
+                    backLink: "/farmer/login"
+                });
+            }
+        );
+
     } catch (error) {
-        console.log("CONFIRM PAYMENT ROUTE ERROR:", error);
-        return res.render("error", {
+        console.log(error);
+        res.render("error", {
             message: "Server error.",
             backLink: "/farmer/register"
         });
@@ -409,14 +402,14 @@ app.post("/farmer/demo-pay/:token", (req, res) => {
     });
 });
 
-app.get("/farmer/dashboard", (req, res) => {
+app.get("/farmer/dashboard",checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
 
     const farmer = req.session.farmer;
 
-    const query = `
+    const jobsQuery = `
         SELECT 
             jobs.*,
             COUNT(
@@ -434,97 +427,56 @@ app.get("/farmer/dashboard", (req, res) => {
         ORDER BY jobs.created_at DESC
     `;
 
-    db.query(query, [farmer.id], (err, jobs) => {
-        if (err) {
-            console.log("FARMER DASHBOARD ERROR:", err);
+    const marketplaceSummaryQuery = `
+        SELECT
+            COUNT(*) AS total_items,
+            SUM(CASE WHEN status = 'Available' THEN 1 ELSE 0 END) AS available_items,
+            SUM(CASE WHEN status = 'Sold' THEN 1 ELSE 0 END) AS sold_items
+        FROM marketplace_items
+        WHERE farmer_id = ?
+    `;
+
+    const recentMarketplaceItemsQuery = `
+        SELECT *
+        FROM marketplace_items
+        WHERE farmer_id = ?
+        ORDER BY created_at DESC
+        LIMIT 4
+    `;
+
+    db.query(jobsQuery, [farmer.id], (jobsErr, jobs) => {
+        if (jobsErr) {
+            console.log("FARMER DASHBOARD JOBS ERROR:", jobsErr);
             return res.send("Error fetching farmer jobs.");
         }
 
-        res.render("farmer-dashboard", { farmer, jobs });
-    });
-});
-
-app.post("/farmer/post-job", (req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const farmer_id = req.session.farmer.id;
-
-    const {
-        job_title,
-        category,
-        work_type,
-        description,
-        location,
-        wage,
-        workers_required,
-        payment_mode,
-        start_date,
-        end_date
-    } = req.body;
-
-    const insertJobQuery = `
-        INSERT INTO jobs 
-        (farmer_id, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date, version)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `;
-
-    db.query(
-        insertJobQuery,
-        [
-            farmer_id,
-            job_title,
-            category,
-            work_type,
-            description,
-            location,
-            wage,
-            workers_required,
-            payment_mode,
-            start_date,
-            end_date
-        ],
-        (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.send("Error posting job.");
+        db.query(marketplaceSummaryQuery, [farmer.id], (marketErr, marketResults) => {
+            if (marketErr) {
+                console.log("FARMER DASHBOARD MARKETPLACE ERROR:", marketErr);
+                return res.send("Error fetching marketplace summary.");
             }
 
-            const jobId = result.insertId;
-
-            const insertVersionQuery = `
-                INSERT INTO job_versions
-                (job_id, version, job_title, category, work_type, description, location, wage, payment_mode, start_date, end_date, restored_from_version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-            `;
-
-            db.query(
-                insertVersionQuery,
-                [
-                    jobId,
-                    1,
-                    job_title,
-                    category,
-                    work_type,
-                    description,
-                    location,
-                    wage,
-                    payment_mode,
-                    start_date,
-                    end_date
-                ],
-                (versionErr) => {
-                    if (versionErr) {
-                        console.log(versionErr);
-                        return res.send("Job created, but version history could not be saved.");
-                    }
-
-                    res.redirect(`/farmer/dashboard?lang=${req.query.lang || "en"}`);
+            db.query(recentMarketplaceItemsQuery, [farmer.id], (recentErr, recentMarketplaceItems) => {
+                if (recentErr) {
+                    console.log("FARMER DASHBOARD RECENT MARKETPLACE ERROR:", recentErr);
+                    return res.send("Error fetching recent marketplace items.");
                 }
-            );
-        }
-    );
+
+                const marketplaceSummary = marketResults[0] || {
+                    total_items: 0,
+                    available_items: 0,
+                    sold_items: 0
+                };
+
+                res.render("farmer-dashboard", {
+                    farmer,
+                    jobs,
+                    marketplaceSummary,
+                    recentMarketplaceItems
+                });
+            });
+        });
+    });
 });
 
 app.get("/logout", (req, res) => {
@@ -1553,76 +1505,6 @@ app.post("/farmer/reopen-job/:jobId", (req, res) => {
     });
 });
 
-// app.post("/farmer/delete-job/:jobId", (req, res) => {
-//     if (!req.session.farmer) {
-//         return res.redirect("/farmer/login");
-//     }
-
-//     const jobId = req.params.jobId;
-//     const farmerId = req.session.farmer.id;
-
-//     const checkQuery = "SELECT * FROM jobs WHERE id = ? AND farmer_id = ?";
-
-//     db.query(checkQuery, [jobId, farmerId], (checkErr, checkResult) => {
-//         if (checkErr) {
-//             console.log(checkErr);
-//             return res.render("error", {
-//                 message: "Error checking job before deletion.",
-//                 backLink: "/farmer/dashboard"
-//             });
-//         }
-
-//         if (checkResult.length === 0) {
-//             return res.render("error", {
-//                 message: "Job not found or unauthorized access.",
-//                 backLink: "/farmer/dashboard"
-//             });
-//         }
-
-//         const deleteVersionsQuery = "DELETE FROM job_versions WHERE job_id = ?";
-
-//         db.query(deleteVersionsQuery, [jobId], (versionErr) => {
-//             if (versionErr) {
-//                 console.log(versionErr);
-//                 return res.render("error", {
-//                     message: "Error deleting job version history.",
-//                     backLink: "/farmer/dashboard"
-//                 });
-//             }
-
-//             const deleteApplicationsQuery = "DELETE FROM job_applications WHERE job_id = ?";
-
-//             db.query(deleteApplicationsQuery, [jobId], (appErr) => {
-//                 if (appErr) {
-//                     console.log(appErr);
-//                     return res.render("error", {
-//                         message: "Error deleting job applications.",
-//                         backLink: "/farmer/dashboard"
-//                     });
-//                 }
-
-//                 const deleteJobQuery = "DELETE FROM jobs WHERE id = ? AND farmer_id = ?";
-
-//                 db.query(deleteJobQuery, [jobId, farmerId], (deleteErr, deleteResult) => {
-//                     if (deleteErr) {
-//                         console.log(deleteErr);
-//                         return res.render("error", {
-//                             message: "Error deleting job.",
-//                             backLink: "/farmer/dashboard"
-//                         });
-//                     }
-
-//                     return res.render("message", {
-//                         title: "Job Deleted",
-//                         message: "The job was deleted successfully. It will no longer appear for workers.",
-//                         backLink: "/farmer/dashboard"
-//                     });
-//                 });
-//             });
-//         });
-//     });
-// });
-
 app.get("/test-phone", (req, res) => {
     res.send("Phone reached laptop server successfully");
 });
@@ -1630,17 +1512,408 @@ app.get("/test-phone", (req, res) => {
 const PORT = process.env.PORT || 5000;
 
 app.get("/check-payment-status", (req, res) => {
-    if (!req.session.pendingFarmer || !req.session.pendingFarmer.paymentToken) {
+    const token = req.session.paymentToken;
+
+    if (!token) {
         return res.json({ status: "pending" });
     }
-
-    const token = req.session.pendingFarmer.paymentToken;
 
     if (fakePayments[token] && fakePayments[token].status === "done") {
         return res.json({ status: "done" });
     }
 
     return res.json({ status: "pending" });
+});
+
+app.get("/marketplace", (req, res) => {
+    const { category = "", item_type = "", location = "", keyword = "" } = req.query;
+
+    let query = `
+        SELECT marketplace_items.*, farmers.full_name
+        FROM marketplace_items
+        JOIN farmers ON marketplace_items.farmer_id = farmers.id
+        WHERE marketplace_items.status = 'Available'
+    `;
+
+    const params = [];
+
+    if (category) {
+        query += " AND marketplace_items.category = ?";
+        params.push(category);
+    }
+
+    if (item_type) {
+        query += " AND marketplace_items.item_type = ?";
+        params.push(item_type);
+    }
+
+    if (location) {
+        query += " AND marketplace_items.location LIKE ?";
+        params.push(`%${location}%`);
+    }
+
+    if (keyword) {
+        query += " AND marketplace_items.item_title LIKE ?";
+        params.push(`%${keyword}%`);
+    }
+
+    query += " ORDER BY marketplace_items.created_at DESC";
+
+    db.query(query, params, (err, items) => {
+        if (err) {
+            console.log("MARKETPLACE ERROR:", err);
+            return res.render("error", {
+                message: "Error fetching marketplace items.",
+                backLink: "/"
+            });
+        }
+
+        res.render("marketplace", {
+            items,
+            filters: { category, item_type, location, keyword }
+        });
+    });
+});
+
+app.get("/farmer/my-marketplace-items", checkSubscription,(req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const farmer_id = req.session.farmer.id;
+
+    const query = `
+        SELECT * FROM marketplace_items
+        WHERE farmer_id = ?
+        ORDER BY created_at DESC
+    `;
+
+    db.query(query, [farmer_id], (err, items) => {
+        if (err) {
+            console.log(err);
+            return res.render("error", {
+                message: "Error fetching your items.",
+                backLink: "/farmer/dashboard"
+            });
+        }
+
+        res.render("my-marketplace-items", { items });
+    });
+});
+
+app.get("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    res.render("post-marketplace-item");
+});
+
+app.get("/marketplace", (req, res) => {
+    const {
+        category = "",
+        item_type = "",
+        location = "",
+        keyword = "",
+        min_price = "",
+        max_price = ""
+    } = req.query;
+
+    let query = `
+        SELECT marketplace_items.*, farmers.full_name
+        FROM marketplace_items
+        JOIN farmers ON marketplace_items.farmer_id = farmers.id
+        WHERE marketplace_items.status = 'Available'
+    `;
+
+    const params = [];
+
+    if (category) {
+        query += " AND marketplace_items.category = ?";
+        params.push(category);
+    }
+
+    if (item_type) {
+        query += " AND marketplace_items.item_type = ?";
+        params.push(item_type);
+    }
+
+    if (location) {
+        query += " AND marketplace_items.location LIKE ?";
+        params.push(`%${location}%`);
+    }
+
+    if (keyword) {
+        query += " AND marketplace_items.item_title LIKE ?";
+        params.push(`%${keyword}%`);
+    }
+
+    if (min_price) {
+        query += " AND marketplace_items.price >= ?";
+        params.push(min_price);
+    }
+
+    if (max_price) {
+        query += " AND marketplace_items.price <= ?";
+        params.push(max_price);
+    }
+
+    query += " ORDER BY marketplace_items.created_at DESC";
+
+    db.query(query, params, (err, items) => {
+        if (err) {
+            console.log("MARKETPLACE ERROR:", err);
+            return res.render("error", {
+                message: "Error fetching marketplace items.",
+                backLink: "/"
+            });
+        }
+
+        res.render("marketplace", {
+            items,
+            filters: {
+                category,
+                item_type,
+                location,
+                keyword,
+                min_price,
+                max_price
+            }
+        });
+    });
+});
+
+app.get("/marketplace/item/:id", (req, res) => {
+    const itemId = req.params.id;
+
+    const query = `
+        SELECT marketplace_items.*, farmers.full_name
+        FROM marketplace_items
+        JOIN farmers ON marketplace_items.farmer_id = farmers.id
+        WHERE marketplace_items.id = ?
+    `;
+
+    db.query(query, [itemId], (err, results) => {
+        if (err) {
+            console.log("MARKETPLACE ITEM DETAILS ERROR:", err);
+            return res.render("error", {
+                message: "Error fetching item details.",
+                backLink: "/marketplace"
+            });
+        }
+
+        if (results.length === 0) {
+            return res.render("error", {
+                message: "Marketplace item not found.",
+                backLink: "/marketplace"
+            });
+        }
+
+        res.render("marketplace-item-details", {
+            item: results[0]
+        });
+    });
+});
+
+app.post("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const farmer_id = req.session.farmer.id;
+
+    const {
+        item_title,
+        category,
+        item_type,
+        description,
+        price,
+        location,
+        contact_phone,
+        image_url
+    } = req.body;
+
+    const query = `
+        INSERT INTO marketplace_items
+        (farmer_id, item_title, category, item_type, description, price, location, contact_phone, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+        query,
+        [
+            farmer_id,
+            item_title,
+            category,
+            item_type,
+            description,
+            price,
+            location,
+            contact_phone,
+            image_url
+        ],
+        (err) => {
+            if (err) {
+                console.log("POST MARKETPLACE ITEM ERROR:", err);
+                return res.render("error", {
+                    message: "Error posting marketplace item.",
+                    backLink: "/farmer/post-marketplace-item"
+                });
+            }
+
+            return res.render("message", {
+                title: "Item Posted",
+                message: "Your marketplace item has been posted successfully.",
+                backLink: "/marketplace"
+            });
+        }
+    );
+});
+
+app.post("/farmer/delete-marketplace-item/:id", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const itemId = req.params.id;
+    const farmer_id = req.session.farmer.id;
+
+    const query = `
+        DELETE FROM marketplace_items
+        WHERE id = ? AND farmer_id = ?
+    `;
+
+    db.query(query, [itemId, farmer_id], (err) => {
+        if (err) {
+            console.log(err);
+            return res.render("error", {
+                message: "Error deleting item.",
+                backLink: "/farmer/my-marketplace-items"
+            });
+        }
+
+        res.redirect("/farmer/my-marketplace-items");
+    });
+});
+
+app.get("/farmer/edit-marketplace-item/:id", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const itemId = req.params.id;
+    const farmer_id = req.session.farmer.id;
+
+    const query = `
+        SELECT * FROM marketplace_items
+        WHERE id = ? AND farmer_id = ?
+    `;
+
+    db.query(query, [itemId, farmer_id], (err, results) => {
+        if (err) {
+            console.log("EDIT MARKETPLACE GET ERROR:", err);
+            return res.render("error", {
+                message: "Error fetching marketplace item.",
+                backLink: "/farmer/my-marketplace-items"
+            });
+        }
+
+        if (results.length === 0) {
+            return res.render("error", {
+                message: "Item not found or unauthorized access.",
+                backLink: "/farmer/my-marketplace-items"
+            });
+        }
+
+        res.render("edit-marketplace-item", {
+            item: results[0]
+        });
+    });
+});
+
+app.post("/farmer/edit-marketplace-item/:id", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const itemId = req.params.id;
+    const farmer_id = req.session.farmer.id;
+
+    const {
+        item_title,
+        category,
+        item_type,
+        description,
+        price,
+        location,
+        contact_phone,
+        image_url
+    } = req.body;
+
+    const query = `
+        UPDATE marketplace_items
+        SET item_title = ?, category = ?, item_type = ?, description = ?, price = ?, location = ?, contact_phone = ?, image_url = ?
+        WHERE id = ? AND farmer_id = ?
+    `;
+
+    db.query(
+        query,
+        [
+            item_title,
+            category,
+            item_type,
+            description,
+            price,
+            location,
+            contact_phone,
+            image_url,
+            itemId,
+            farmer_id
+        ],
+        (err, result) => {
+            if (err) {
+                console.log("EDIT MARKETPLACE POST ERROR:", err);
+                return res.render("error", {
+                    message: "Error updating marketplace item.",
+                    backLink: "/farmer/my-marketplace-items"
+                });
+            }
+
+            return res.render("message", {
+                title: "Item Updated",
+                message: "Marketplace item updated successfully.",
+                backLink: "/farmer/my-marketplace-items"
+            });
+        }
+    );
+});
+
+app.post("/farmer/mark-marketplace-item/:id", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const itemId = req.params.id;
+    const farmer_id = req.session.farmer.id;
+    const { status } = req.body;
+
+    const query = `
+        UPDATE marketplace_items
+        SET status = ?
+        WHERE id = ? AND farmer_id = ?
+    `;
+
+    db.query(query, [status, itemId, farmer_id], (err) => {
+        if (err) {
+            console.log("MARK MARKETPLACE ITEM ERROR:", err);
+            return res.render("error", {
+                message: "Error updating item status.",
+                backLink: "/farmer/my-marketplace-items"
+            });
+        }
+
+        res.redirect("/farmer/my-marketplace-items");
+    });
 });
 
 // Start server on all networks (important)

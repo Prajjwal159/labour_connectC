@@ -55,8 +55,7 @@
             </div>
         </div>
     </div>
-</div>
-<script>
+</div><script>
     let paymentHandled = false;
 
     setInterval(async () => {
@@ -71,8 +70,14 @@
                 statusBox.className = "alert alert-success mb-0";
                 statusBox.textContent = "Payment detected. Finalizing account...";
 
-                const confirmRes = await fetch("/farmer/confirm-payment?lang=<%= currentLang %>", {
-                    method: "POST"
+                const confirmRes = await fetch("/farmer/confirm-payment", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        token: "<%= paymentToken %>"
+                    })
                 });
 
                 const html = await confirmRes.text();
@@ -85,5 +90,6 @@
         }
     }, 2000);
 </script>
+
 </body>
 </html>
