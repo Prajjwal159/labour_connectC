@@ -11,6 +11,16 @@
 <div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80');"></div>
 <div class="page-overlay" style="background:linear-gradient(180deg, rgba(17,58,28,0.58), rgba(240,247,238,0.95) 48%, rgba(245,248,242,1));"></div>
 
+<% if (subscriptionExpired) { %>
+    <div class="alert alert-danger mb-4">
+        <strong>Subscription Expired!</strong>  
+        Your access is limited. Please renew to continue using all features.
+        <a href="/farmer/renew-subscription?lang=<%= currentLang %>" class="btn btn-sm btn-danger ms-3">
+            Renew Now
+        </a>
+    </div>
+<% } %>
+
 <nav class="navbar glass-nav">
     <div class="container">
         <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
@@ -19,8 +29,25 @@
             <a href="?lang=en" class="btn btn-sm btn-light">English</a>
             <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
             <a href="/marketplace?lang=<%= currentLang %>" class="btn glass-btn">Marketplace</a>
-            <a href="/farmer/post-marketplace-item?lang=<%= currentLang %>" class="btn glass-btn">+ Post Item</a>
-            <a href="/farmer/post-job?lang=<%= currentLang %>" class="btn glass-btn">+ <%= t('post_job') %></a>
+            <% if (subscriptionExpired) { %>
+                <button class="btn glass-btn" disabled title="Subscription expired">
+                    + Post Item
+                
+                </button>
+                <% } else { %>
+                    <a href="/farmer/post-marketplace-item?lang=<%= currentLang %>" class="btn glass-btn">
+                        + Post Item
+                    </a>
+                    <% } %>
+            <% if (subscriptionExpired) { %>
+                <button class="btn pretty-btn-green" disabled title="Subscription expired">
+                    <%= t('post_job') %>
+                </button>
+                <% } else { %>
+                    <a href="/farmer/post-job?lang=<%= currentLang %>" class="btn pretty-btn-green">
+                        <%= t('post_job') %>
+                    </a>
+                    <% } %>
             <a href="/logout?lang=<%= currentLang %>" class="btn glass-btn-outline"><%= t('logout') %></a>
             <a href="/farmer/my-marketplace-items?lang=<%= currentLang %>" class="btn glass-btn">My Items</a>
         </div>

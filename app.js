@@ -3,6 +3,7 @@ const path = require("path");
 const bodyParser = require("body-parser");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
+const axios = require("axios");
 require("dotenv").config();
 const db = require("./config/db");
 const translations = require("./locales/translations");
@@ -33,19 +34,14 @@ function checkSubscription(req, res, next) {
     const farmer = req.session.farmer;
 
     if (!farmer.subscription_end_date) {
+        req.subscriptionExpired = false;
         return next();
     }
 
     const today = new Date();
     const expiry = new Date(farmer.subscription_end_date);
 
-    if (today > expiry) {
-    return res.render("message", {
-        title: "Subscription Expired",
-        message: "Your subscription has expired. Please renew to continue using the platform.",
-        backLink: "/farmer/renew-subscription"
-    });
-}
+    req.subscriptionExpired = today > expiry;
 
     next();
 }
@@ -233,6 +229,13 @@ app.get("/farmer/post-job", checkSubscription,(req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
 
     res.render("post-job");
 });
@@ -569,7 +572,8 @@ app.get("/farmer/dashboard",checkSubscription, (req, res) => {
                     jobs,
                     marketplaceSummary,
                     recentMarketplaceItems,
-                    subscriptionWarning
+                    subscriptionWarning,
+                    subscriptionExpired: req.subscriptionExpired
                 });
             });
         });
@@ -1702,6 +1706,13 @@ app.get("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
 
     res.render("post-marketplace-item");
 });
@@ -1739,6 +1750,14 @@ app.get("/marketplace/item/:id", (req, res) => {
 });
 
 app.post("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
+
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1794,6 +1813,13 @@ app.post("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
 });
 
 app.post("/farmer/delete-marketplace-item/:id", checkSubscription, (req, res) => {
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1820,6 +1846,14 @@ app.post("/farmer/delete-marketplace-item/:id", checkSubscription, (req, res) =>
 });
 
 app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
+
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1855,6 +1889,13 @@ app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
 });
 
 app.post("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
+    if (req.subscriptionExpired) {
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Renew subscription to post jobs.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1980,6 +2021,251 @@ app.post("/farmer/renew-subscription", (req, res) => {
     req.session.paymentToken = token;
 
     res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
+});
+
+app.get("/krishi-yojanas", (req, res) => {
+    const currentLang = req.query.lang || "en";
+    const selectedCategory = req.query.category || "All";
+    const search = (req.query.search || "").toLowerCase().trim();
+
+    const yojanas = [
+        {
+            title: "PM-KISAN",
+            category: "Subsidy",
+            description: "Income support scheme for eligible landholding farmer families.",
+            benefits: "₹6000 per year in three instalments.",
+            eligibility: "Eligible landholding farmer families as per scheme rules.",
+            link: "https://www.myscheme.gov.in/schemes/pm-kisan"
+        },
+        {
+            title: "Kisan Credit Card (KCC)",
+            category: "Loan",
+            description: "Provides timely and flexible crop loan support through banks.",
+            benefits: "Short-term credit for crop and related needs.",
+            eligibility: "Farmers who meet KCC banking and scheme requirements.",
+            link: "https://www.myscheme.gov.in/schemes/kcc"
+        },
+        {
+            title: "PM-KUSUM",
+            category: "Energy",
+            description: "Supports solar-based energy solutions for farmers.",
+            benefits: "Helps reduce irrigation and energy costs through solar support.",
+            eligibility: "Farmers and eligible entities as per PM-KUSUM guidelines.",
+            link: "https://www.myscheme.gov.in/schemes/pm-kusum"
+        },
+        {
+            title: "PMKSY - Per Drop More Crop",
+            category: "Irrigation",
+            description: "Focuses on micro-irrigation and better water-use efficiency.",
+            benefits: "Support for drip and sprinkler irrigation systems.",
+            eligibility: "Eligible farmers under PMKSY micro-irrigation rules.",
+            link: "https://www.myscheme.gov.in/schemes/pmksypdmc"
+        },
+        {
+            title: "Pradhan Mantri Kisan Maandhan Yojana",
+            category: "Pension",
+            description: "Old-age social security scheme for small and marginal farmers.",
+            benefits: "₹3000 monthly pension after 60 years of age.",
+            eligibility: "Eligible small and marginal farmers under the scheme rules.",
+            link: "https://www.myscheme.gov.in/schemes/pmkmdy"
+        },
+        {
+            title: "PM Fasal Bima Yojana (PMFBY)",
+            category: "Insurance",
+            description: "Crop insurance scheme for farmers.",
+            benefits: "Protection against crop loss due to natural disasters.",
+            eligibility: "All farmers growing notified crops.",
+            link: "https://pmfby.gov.in/"
+        },
+        {
+            title: "PM AASHA",
+            category: "Market",
+            description: "Ensures farmers get minimum support price.",
+            benefits: "Government buys crops if price falls.",
+            eligibility: "Farmers producing MSP crops.",
+            link: "https://agricoop.nic.in/"
+        },
+        {
+            title: "Agriculture Infrastructure Fund",
+            category: "Infrastructure",
+            description: "Supports building farm infrastructure.",
+            benefits: "Subsidized loans for warehouses, storage.",
+            eligibility: "Farmers, FPOs, agri-startups.",
+            link: "https://agriinfra.dac.gov.in/"
+        },
+        {
+            title: "e-NAM",
+            category: "Market",
+            description: "Online agricultural market platform.",
+            benefits: "Better price discovery for crops.",
+            eligibility: "All registered farmers.",
+            link: "https://enam.gov.in/"
+        },
+        {
+            title: "Soil Health Card Scheme",
+            category: "Subsidy",
+            description: "Provides soil quality reports.",
+            benefits: "Helps use correct fertilizers.",
+            eligibility: "All farmers.",
+            link: "https://soilhealth.dac.gov.in/"
+        },
+        {
+            title: "PKVY (Organic Farming)",
+            category: "Organic",
+            description: "Promotes organic farming.",
+            benefits: "Support for organic inputs.",
+            eligibility: "Farmers interested in organic farming.",
+            link: "https://pgsindia-ncof.gov.in/"
+        },
+        {
+            title: "NMSA",
+            category: "Subsidy",
+            description: "Sustainable agriculture scheme.",
+            benefits: "Water and soil conservation.",
+            eligibility: "Farmers in climate-risk areas.",
+            link: "https://nmsa.dac.gov.in/"
+        },
+        {
+            title: "Micro Irrigation Fund",
+            category: "Irrigation",
+            description: "Supports drip irrigation systems.",
+            benefits: "Water saving technology.",
+            eligibility: "Farmers adopting irrigation systems.",
+            link: "https://nabard.org/"
+        },
+        {
+            title: "National Food Security Mission (NFSM)",
+            category: "Subsidy",
+            description: "Increase production of rice, wheat, pulses.",
+            benefits: "Improves crop productivity.",
+            eligibility: "Farmers growing food crops.",
+            link: "https://nfsm.gov.in/"
+        },
+        {
+            title: "Rashtriya Krishi Vikas Yojana (RKVY)",
+            category: "Subsidy",
+            description: "Supports agriculture development projects.",
+            benefits: "Funding for agri projects and startups.",
+            eligibility: "Farmers, agri-entrepreneurs.",
+            link: "https://rkvy.nic.in/"
+        },
+        {
+            title: "NMOOP",
+            category: "Subsidy",
+            description: "Promotes oilseed and oil palm farming.",
+            benefits: "Subsidy for seeds and farming.",
+            eligibility: "Farmers growing oil crops.",
+            link: "https://agricoop.nic.in/"
+        },
+        {
+            title: "SMAM",
+            category: "Subsidy",
+            description: "Supports farm machinery purchase.",
+            benefits: "Subsidy on tractors and equipment.",
+            eligibility: "Small and marginal farmers.",
+            link: "https://agricoop.nic.in/"
+        },
+        {
+            title: "ISAM",
+            category: "Market",
+            description: "Improves agricultural marketing infrastructure.",
+            benefits: "Better storage and marketing facilities.",
+            eligibility: "Farmers, traders.",
+            link: "https://agmarknet.gov.in/"
+        },
+        {
+            title: "MIDH",
+            category: "Subsidy",
+            description: "Promotes horticulture crops.",
+            benefits: "Support for fruits, vegetables, flowers.",
+            eligibility: "Farmers doing horticulture.",
+            link: "https://midh.gov.in/"
+        },
+        {
+            title: "National Bamboo Mission",
+            category: "Subsidy",
+            description: "Promotes bamboo cultivation.",
+            benefits: "Financial support for bamboo farming.",
+            eligibility: "Farmers interested in bamboo.",
+            link: "https://nbm.nic.in/"
+        },
+        {
+            title: "Blue Revolution",
+            category: "Livestock",
+            description: "Supports fisheries development.",
+            benefits: "Boost fish production income.",
+            eligibility: "Fish farmers.",
+            link: "https://nfdb.gov.in/"
+        },
+        {
+            title: "DEDS",
+            category: "Livestock",
+            description: "Supports dairy farming.",
+            benefits: "Subsidy for dairy units.",
+            eligibility: "Farmers and dairy entrepreneurs.",
+            link: "https://nabard.org/"
+        },
+        {
+            title: "National Livestock Mission",
+            category: "Livestock",
+            description: "Supports livestock farming.",
+            benefits: "Improves animal productivity.",
+            eligibility: "Farmers with livestock.",
+            link: "https://nlm.udyamimitra.in/"
+        },
+        {
+            title: "Atmanirbhar Bharat Agri Infra",
+            category: "Infrastructure",
+            description: "Boost agriculture infrastructure.",
+            benefits: "Financial support for infra projects.",
+            eligibility: "Farmers, startups.",
+            link: "https://agriinfra.dac.gov.in/"
+        },
+        {
+            title: "Kisan Rail",
+            category: "Market",
+            description: "Transport agricultural produce.",
+            benefits: "Faster delivery to markets.",
+            eligibility: "Farmers and traders.",
+            link: "https://indianrailways.gov.in/"
+        },
+        {
+            title: "Gramin Bhandaran Yojana",
+            category: "Infrastructure",
+            description: "Supports rural warehouses.",
+            benefits: "Storage subsidy.",
+            eligibility: "Farmers, cooperatives.",
+            link: "https://nabard.org/"
+        },
+        {
+            title: "National Beekeeping Scheme",
+            category: "Livestock",
+            description: "Promotes honey production.",
+            benefits: "Extra income source.",
+            eligibility: "Farmers and entrepreneurs.",
+            link: "https://nbb.gov.in/"
+        },
+        {
+            title: "PMFME",
+            category: "Infrastructure",
+            description: "Supports food processing businesses.",
+            benefits: "Subsidy for small food industries.",
+            eligibility: "Farmers, SHGs, entrepreneurs.",
+            link: "https://pmfme.mofpi.gov.in/"
+        }
+    ];
+
+    const filteredYojanas =
+        selectedCategory === "All"
+            ? yojanas
+            : yojanas.filter(item => item.category === selectedCategory);
+
+    res.render("krishi-yojanas", {
+    currentLang,
+    yojanas: filteredYojanas,
+    selectedCategory,
+    search
+});
 });
 
 // Start server on all networks (important)
