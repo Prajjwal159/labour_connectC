@@ -40,14 +40,45 @@ function checkSubscription(req, res, next) {
     const expiry = new Date(farmer.subscription_end_date);
 
     if (today > expiry) {
-        return res.render("message", {
-            title: "Subscription Expired",
-            message: "Your subscription has expired. Please renew to continue using the platform.",
-            backLink: "/"
-            });
-    }
+    return res.render("message", {
+        title: "Subscription Expired",
+        message: "Your subscription has expired. Please renew to continue using the platform.",
+        backLink: "/farmer/renew-subscription"
+    });
+}
 
     next();
+}
+
+function getSubscriptionWarning(subscriptionEndDate) {
+    if (!subscriptionEndDate) return null;
+
+    const today = new Date();
+    const expiry = new Date(subscriptionEndDate);
+
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+        return {
+            type: "expired",
+            daysLeft: 0,
+            message: "Your subscription has expired."
+        };
+    }
+
+    if (diffDays <= 3) {
+        return {
+            type: "warning",
+            daysLeft: diffDays,
+            message: `Your subscription will expire in ${diffDays} day${diffDays === 1 ? "" : "s"}. Please renew soon.`
+        };
+    }
+
+    return null;
 }
 
 const app = express();
@@ -266,7 +297,7 @@ app.get("/farmer/subscription-payment", (req, res) => {
     });
 });
 
-app.post("/farmer/confirm-payment", async (req, res) => {
+app.post("/farmer/confirm-payment", (req, res) => {
     try {
         const { token } = req.body;
 
@@ -286,6 +317,62 @@ app.post("/farmer/confirm-payment", async (req, res) => {
 
         const data = fakePayments[token].data;
 
+        if (fakePayments[token].type === "renewal") {
+            const farmerId = fakePayments[token].farmerId;
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
+
+            const updateQuery = `
+                UPDATE farmers
+                SET subscription_plan = ?,
+                    subscription_amount = ?,
+                    subscription_months = ?,
+                    subscription_status = 'Paid',
+                    subscription_start_date = ?,
+                    subscription_end_date = ?
+                WHERE id = ?
+            `;
+
+            db.query(
+                updateQuery,
+                [
+                    data.subscription_plan_label,
+                    parseFloat(data.subscription_amount),
+                    parseInt(data.subscription_months),
+                    startDate.toISOString().split("T")[0],
+                    endDate.toISOString().split("T")[0],
+                    farmerId
+                ],
+                (err) => {
+                    if (err) {
+                        console.log(err);
+                        return res.render("error", {
+                            message: "Error renewing subscription.",
+                            backLink: "/farmer/renew-subscription"
+                        });
+                    }
+
+                    req.session.farmer.subscription_plan = data.subscription_plan_label;
+                    req.session.farmer.subscription_amount = parseFloat(data.subscription_amount);
+                    req.session.farmer.subscription_months = parseInt(data.subscription_months);
+                    req.session.farmer.subscription_status = "Paid";
+                    req.session.farmer.subscription_start_date = startDate.toISOString().split("T")[0];
+                    req.session.farmer.subscription_end_date = endDate.toISOString().split("T")[0];
+
+                    delete fakePayments[token];
+
+                    return res.render("message", {
+                        title: "Subscription Renewed",
+                        message: "Your subscription has been renewed successfully.",
+                        backLink: "/farmer/dashboard"
+                    });
+                }
+            );
+
+            return;
+        }
+
         const {
             full_name,
             phone,
@@ -294,71 +381,78 @@ app.post("/farmer/confirm-payment", async (req, res) => {
             password,
             subscription_amount,
             subscription_months,
-            subscription_plan_label,
-            currentLang
+            subscription_plan_label
         } = data;
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
-
-        const insertQuery = `
-            INSERT INTO farmers
-            (
-                full_name,
-                phone,
-                village,
-                email,
-                password,
-                subscription_plan,
-                subscription_amount,
-                subscription_months,
-                subscription_status,
-                subscription_start_date,
-                subscription_end_date
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        db.query(
-            insertQuery,
-            [
-                full_name,
-                phone,
-                village,
-                email,
-                hashedPassword,
-                subscription_plan_label,
-                subscription_amount,
-                subscription_months,
-                "Paid",
-                startDate.toISOString().split("T")[0],
-                endDate.toISOString().split("T")[0]
-            ],
-            (err) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "DB error while creating farmer.",
-                        backLink: "/farmer/register"
-                    });
-                }
-
-                delete fakePayments[token];
-
-                return res.render("message", {
-                    title: "Success",
-                    message: "Payment done. Farmer account created.",
-                    backLink: "/farmer/login"
+        bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
+            if (hashErr) {
+                console.log(hashErr);
+                return res.render("error", {
+                    message: "Error hashing password.",
+                    backLink: "/farmer/register"
                 });
             }
-        );
+
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
+
+            const insertQuery = `
+                INSERT INTO farmers
+                (
+                    full_name,
+                    phone,
+                    village,
+                    email,
+                    password,
+                    subscription_plan,
+                    subscription_amount,
+                    subscription_months,
+                    subscription_status,
+                    subscription_start_date,
+                    subscription_end_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            db.query(
+                insertQuery,
+                [
+                    full_name,
+                    phone,
+                    village,
+                    email,
+                    hashedPassword,
+                    subscription_plan_label,
+                    subscription_amount,
+                    subscription_months,
+                    "Paid",
+                    startDate.toISOString().split("T")[0],
+                    endDate.toISOString().split("T")[0]
+                ],
+                (err) => {
+                    if (err) {
+                        console.log(err);
+                        return res.render("error", {
+                            message: "DB error while creating farmer.",
+                            backLink: "/farmer/register"
+                        });
+                    }
+
+                    delete fakePayments[token];
+
+                    return res.render("message", {
+                        title: "Success",
+                        message: "Payment done. Farmer account created.",
+                        backLink: "/farmer/login"
+                    });
+                }
+            );
+        });
 
     } catch (error) {
         console.log(error);
-        res.render("error", {
+        return res.render("error", {
             message: "Server error.",
             backLink: "/farmer/register"
         });
@@ -468,11 +562,14 @@ app.get("/farmer/dashboard",checkSubscription, (req, res) => {
                     sold_items: 0
                 };
 
+                const subscriptionWarning = getSubscriptionWarning(farmer.subscription_end_date);
+
                 res.render("farmer-dashboard", {
                     farmer,
                     jobs,
                     marketplaceSummary,
-                    recentMarketplaceItems
+                    recentMarketplaceItems,
+                    subscriptionWarning
                 });
             });
         });
@@ -798,7 +895,7 @@ app.post("/worker/apply/:jobId", (req, res) => {
     });
 });
 
-app.get("/farmer/job-applications/:jobId", (req, res) => {
+app.get("/farmer/job-applications/:jobId", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -813,7 +910,7 @@ app.get("/farmer/job-applications/:jobId", (req, res) => {
             console.log(err);
             return res.render("error", {
                 message: "Error fetching job details.",
-                backLink: "/farmer/dashboard"
+                backLink: "/farmer/renew-subscription"
             });
         }
 
@@ -871,7 +968,7 @@ app.get("/farmer/job-applications/:jobId", (req, res) => {
     });
 });
 
-app.post("/farmer/application/update/:appId", (req, res) => {
+app.post("/farmer/application/update/:appId", checkSubscription,(req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1030,7 +1127,7 @@ app.post("/worker/forgot-password", async (req, res) => {
     }
 });
 
-app.get("/farmer/edit-job/:jobId", (req, res) => {
+app.get("/farmer/edit-job/:jobId", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1060,7 +1157,7 @@ app.get("/farmer/edit-job/:jobId", (req, res) => {
     });
 });
 
-app.post("/farmer/edit-job/:jobId", (req, res) => {
+app.post("/farmer/edit-job/:jobId", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1187,7 +1284,7 @@ app.post("/farmer/edit-job/:jobId", (req, res) => {
     });
 });
 
-app.get("/farmer/job-history/:jobId", (req, res) => {
+app.get("/farmer/job-history/:jobId",checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1367,7 +1464,7 @@ app.post("/farmer/restore-job-version/:jobId/:version", (req, res) => {
     });
 });
 
-app.post("/farmer/delete-job/:jobId", (req, res) => {
+app.post("/farmer/delete-job/:jobId", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1437,7 +1534,7 @@ app.post("/farmer/delete-job/:jobId", (req, res) => {
     });
 });
 
-app.post("/farmer/close-job/:jobId", (req, res) => {
+app.post("/farmer/close-job/:jobId",checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1471,7 +1568,7 @@ app.post("/farmer/close-job/:jobId", (req, res) => {
     });
 });
 
-app.post("/farmer/reopen-job/:jobId", (req, res) => {
+app.post("/farmer/reopen-job/:jobId",checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1609,80 +1706,6 @@ app.get("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
     res.render("post-marketplace-item");
 });
 
-app.get("/marketplace", (req, res) => {
-    const {
-        category = "",
-        item_type = "",
-        location = "",
-        keyword = "",
-        min_price = "",
-        max_price = ""
-    } = req.query;
-
-    let query = `
-        SELECT marketplace_items.*, farmers.full_name
-        FROM marketplace_items
-        JOIN farmers ON marketplace_items.farmer_id = farmers.id
-        WHERE marketplace_items.status = 'Available'
-    `;
-
-    const params = [];
-
-    if (category) {
-        query += " AND marketplace_items.category = ?";
-        params.push(category);
-    }
-
-    if (item_type) {
-        query += " AND marketplace_items.item_type = ?";
-        params.push(item_type);
-    }
-
-    if (location) {
-        query += " AND marketplace_items.location LIKE ?";
-        params.push(`%${location}%`);
-    }
-
-    if (keyword) {
-        query += " AND marketplace_items.item_title LIKE ?";
-        params.push(`%${keyword}%`);
-    }
-
-    if (min_price) {
-        query += " AND marketplace_items.price >= ?";
-        params.push(min_price);
-    }
-
-    if (max_price) {
-        query += " AND marketplace_items.price <= ?";
-        params.push(max_price);
-    }
-
-    query += " ORDER BY marketplace_items.created_at DESC";
-
-    db.query(query, params, (err, items) => {
-        if (err) {
-            console.log("MARKETPLACE ERROR:", err);
-            return res.render("error", {
-                message: "Error fetching marketplace items.",
-                backLink: "/"
-            });
-        }
-
-        res.render("marketplace", {
-            items,
-            filters: {
-                category,
-                item_type,
-                location,
-                keyword,
-                min_price,
-                max_price
-            }
-        });
-    });
-});
-
 app.get("/marketplace/item/:id", (req, res) => {
     const itemId = req.params.id;
 
@@ -1770,7 +1793,7 @@ app.post("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
     );
 });
 
-app.post("/farmer/delete-marketplace-item/:id", (req, res) => {
+app.post("/farmer/delete-marketplace-item/:id", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1796,7 +1819,7 @@ app.post("/farmer/delete-marketplace-item/:id", (req, res) => {
     });
 });
 
-app.get("/farmer/edit-marketplace-item/:id", (req, res) => {
+app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1831,7 +1854,7 @@ app.get("/farmer/edit-marketplace-item/:id", (req, res) => {
     });
 });
 
-app.post("/farmer/edit-marketplace-item/:id", (req, res) => {
+app.post("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1888,7 +1911,7 @@ app.post("/farmer/edit-marketplace-item/:id", (req, res) => {
     );
 });
 
-app.post("/farmer/mark-marketplace-item/:id", (req, res) => {
+app.post("/farmer/mark-marketplace-item/:id", checkSubscription, (req, res) => {
     if (!req.session.farmer) {
         return res.redirect("/farmer/login");
     }
@@ -1914,6 +1937,49 @@ app.post("/farmer/mark-marketplace-item/:id", (req, res) => {
 
         res.redirect("/farmer/my-marketplace-items");
     });
+});
+
+app.get("/farmer/renew-subscription", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    res.render("farmer-renew-subscription");
+});
+
+app.post("/farmer/renew-subscription", (req, res) => {
+    if (!req.session.farmer) {
+        return res.redirect("/farmer/login");
+    }
+
+    const currentLang = req.query.lang || "en";
+    const { subscription_plan } = req.body;
+
+    if (!subscription_plan) {
+        return res.render("error", {
+            message: "Please select a subscription plan.",
+            backLink: `/farmer/renew-subscription?lang=${currentLang}`
+        });
+    }
+
+    const [amount, months] = subscription_plan.split("|");
+    const token = crypto.randomBytes(16).toString("hex");
+
+    fakePayments[token] = {
+        status: "pending",
+        type: "renewal",
+        farmerId: req.session.farmer.id,
+        data: {
+            subscription_amount: amount,
+            subscription_months: months,
+            subscription_plan_label: `${amount} - ${months} months`,
+            currentLang
+        }
+    };
+
+    req.session.paymentToken = token;
+
+    res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
 });
 
 // Start server on all networks (important)
