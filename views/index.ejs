@@ -228,6 +228,262 @@
             </div>
         </div>
     </section>
+    <!-- Voice Assistant Floating Button -->
+<button id="voiceAssistantToggle" class="voice-assistant-btn" type="button">
+    🎤
+</button>
 
+<!-- Voice Assistant Panel -->
+<div id="voiceAssistantPanel" class="voice-assistant-panel d-none">
+    <div class="voice-header">
+        <h5 class="mb-0">Voice Assistant</h5>
+        <button id="voiceAssistantClose" type="button" class="btn btn-sm btn-light">✕</button>
+    </div>
+
+    <div class="voice-body">
+        <label class="form-label mt-2">Language</label>
+        <select id="voiceLanguage" class="form-select mb-3">
+            <option value="en-IN">English</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="kn-IN">Kannada</option>
+        </select>
+
+        <div class="voice-status-box mb-3">
+            <strong>Status:</strong>
+            <span id="voiceStatus">Idle</span>
+        </div>
+
+        <div class="voice-transcript-box mb-3">
+            <strong>You said:</strong>
+            <div id="voiceTranscript">Nothing yet</div>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button id="startVoiceBtn" type="button" class="btn btn-success">Start Listening</button>
+            <button id="stopVoiceBtn" type="button" class="btn btn-outline-secondary">Stop</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.voice-assistant-btn {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 64px;
+    height: 64px;
+    border: none;
+    border-radius: 50%;
+    background: #1f8f4e;
+    color: white;
+    font-size: 28px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    z-index: 9999;
+}
+
+.voice-assistant-panel {
+    position: fixed;
+    right: 24px;
+    bottom: 100px;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.voice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #1f8f4e;
+    color: white;
+}
+
+.voice-body {
+    padding: 16px;
+}
+
+.voice-status-box,
+.voice-transcript-box {
+    background: #f6f8f7;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.d-none {
+    display: none !important;
+}
+</style>
+<script>
+const toggleBtn = document.getElementById("voiceAssistantToggle");
+const panel = document.getElementById("voiceAssistantPanel");
+const closeBtn = document.getElementById("voiceAssistantClose");
+
+const startBtn = document.getElementById("startVoiceBtn");
+const stopBtn = document.getElementById("stopVoiceBtn");
+
+const statusText = document.getElementById("voiceStatus");
+const transcriptText = document.getElementById("voiceTranscript");
+const languageSelect = document.getElementById("voiceLanguage");
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+
+let recognition = null;
+let isListening = false;
+
+function speakNow(text) {
+    if (!("speechSynthesis" in window)) {
+        statusText.textContent = "Speech output not supported";
+        return;
+    }
+
+    synth.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = languageSelect.value;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+        console.log("Speech started");
+        statusText.textContent = "Speaking";
+    };
+
+    utterance.onend = () => {
+        console.log("Speech ended");
+        statusText.textContent = "Finished speaking";
+    };
+
+    utterance.onerror = (e) => {
+        console.log("Speech error:", e);
+        statusText.textContent = "Speech error";
+    };
+
+    synth.speak(utterance);
+}
+
+toggleBtn.addEventListener("click", () => {
+    panel.classList.toggle("d-none");
+});
+
+closeBtn.addEventListener("click", () => {
+    panel.classList.add("d-none");
+});
+
+if (!SpeechRecognition) {
+    statusText.textContent = "Voice not supported in this browser. Use Chrome or Edge.";
+    startBtn.disabled = true;
+    stopBtn.disabled = true;
+} else {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.lang = languageSelect.value;
+
+    languageSelect.addEventListener("change", () => {
+        recognition.lang = languageSelect.value;
+        statusText.textContent = "Language changed";
+    });
+
+    startBtn.addEventListener("click", () => {
+        if (isListening) return;
+
+        recognition.lang = languageSelect.value;
+        transcriptText.textContent = "Listening...";
+        statusText.textContent = "Listening";
+        isListening = true;
+
+        try {
+            recognition.start();
+        } catch (err) {
+            console.log(err);
+            statusText.textContent = "Could not start microphone";
+            isListening = false;
+        }
+    });
+
+    stopBtn.addEventListener("click", () => {
+        if (recognition && isListening) {
+            recognition.stop();
+            statusText.textContent = "Stopped";
+            isListening = false;
+        }
+    });
+
+    recognition.onresult = (event) => {
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            }
+        }
+
+        finalTranscript = finalTranscript.toLowerCase().trim();
+        transcriptText.textContent = finalTranscript || "Listening...";
+
+        if (!finalTranscript) return;
+
+        if (finalTranscript.includes("job")) {
+            speakNow("Opening jobs");
+            setTimeout(() => {
+                window.location.href = "/worker/jobs";
+            }, 3000);
+        }
+
+        else if (finalTranscript.includes("loan") || finalTranscript.includes("scheme")) {
+            speakNow("Opening loan schemes");
+            setTimeout(() => {
+                window.location.href = "/krishi-yojanas?search=loan";
+            }, 3000);
+        }
+
+        else if (finalTranscript.includes("market")) {
+            speakNow("Opening marketplace");
+            setTimeout(() => {
+                window.location.href = "/marketplace";
+            }, 3000);
+        }
+
+        else if (finalTranscript.includes("farmer login")) {
+            speakNow("Opening farmer login");
+            setTimeout(() => {
+                window.location.href = "/farmer/login";
+            }, 3000);
+        }
+
+        else if (finalTranscript.includes("dashboard")) {
+            speakNow("Opening dashboard");
+            setTimeout(() => {
+                window.location.href = "/farmer/dashboard";
+            }, 3000);
+        }
+
+        else {
+            speakNow("Sorry, I did not understand");
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.log("Speech recognition error:", event.error);
+        statusText.textContent = "Error: " + event.error;
+        isListening = false;
+    };
+
+    recognition.onend = () => {
+        isListening = false;
+        if (statusText.textContent === "Listening") {
+            statusText.textContent = "Finished listening";
+        }
+    };
+}
+</script>
 </body>
 </html>
