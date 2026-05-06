@@ -5,6 +5,7 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 require("dotenv").config();
+// const db = require("./config/db");
 const connectMongoDB = require("./config/mongodb");
 connectMongoDB();
 const translations = require("./locales/translations");
@@ -395,19 +396,48 @@ app.get("/farmer/dashboard", checkSubscription, async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        const marketplaceSummary = {
-            total_items: 0,
-            available_items: 0,
-            sold_items: 0
-        };
+        const formattedJobs = jobs.map(job => ({
+            ...job,
+            id: job._id
+        }));
 
-        const recentMarketplaceItems = [];
+        const totalItems = await MarketplaceItem.countDocuments({
+            farmer_id: farmer.id
+        });
+
+        const availableItems = await MarketplaceItem.countDocuments({
+            farmer_id: farmer.id,
+            status: "Available"
+        });
+
+        const soldItems = await MarketplaceItem.countDocuments({
+            farmer_id: farmer.id,
+            status: "Sold"
+        });
+
+        const recentMarketplaceItemsRaw = await MarketplaceItem.find({
+            farmer_id: farmer.id
+        })
+            .sort({ createdAt: -1 })
+            .limit(4)
+            .lean();
+
+        const recentMarketplaceItems = recentMarketplaceItemsRaw.map(item => ({
+            ...item,
+            id: item._id
+        }));
+
+        const marketplaceSummary = {
+            total_items: totalItems,
+            available_items: availableItems,
+            sold_items: soldItems
+        };
 
         const subscriptionWarning = getSubscriptionWarning(farmer.subscription_end_date);
 
         res.render("farmer-dashboard", {
             farmer,
-            jobs,
+            jobs: formattedJobs,
             marketplaceSummary,
             recentMarketplaceItems,
             subscriptionWarning,
@@ -416,7 +446,11 @@ app.get("/farmer/dashboard", checkSubscription, async (req, res) => {
 
     } catch (err) {
         console.log("MONGO FARMER DASHBOARD ERROR:", err);
-        res.send("Error loading farmer dashboard.");
+
+        res.render("error", {
+            message: "Error loading farmer dashboard.",
+            backLink: "/farmer/login"
+        });
     }
 });
 
@@ -771,44 +805,27 @@ app.post("/farmer/forgot-password", async (req, res) => {
     try {
         const { email, phone, newPassword } = req.body;
 
-        const query = "SELECT * FROM farmers WHERE email = ? AND phone = ?";
-        db.query(query, [email, phone], async (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.render("error", {
-                    message: "Error while verifying farmer details.",
-                    backLink: "/farmer/forgot-password"
-                });
-            }
+        const farmer = await Farmer.findOne({ email, phone });
 
-            if (result.length === 0) {
-                return res.render("error", {
-                    message: "Farmer account not found with given email and phone.",
-                    backLink: "/farmer/forgot-password"
-                });
-            }
-
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-            const updateQuery = "UPDATE farmers SET password = ? WHERE email = ? AND phone = ?";
-            db.query(updateQuery, [hashedPassword, email, phone], (err, data) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Error updating password.",
-                        backLink: "/farmer/forgot-password"
-                    });
-                }
-
-                return res.render("message", {
-                    title: "Password Updated",
-                    message: "Your farmer password has been updated successfully.",
-                    backLink: "/farmer/login"
-                });
+        if (!farmer) {
+            return res.render("error", {
+                message: "Farmer account not found with given email and phone.",
+                backLink: "/farmer/forgot-password"
             });
+        }
+
+        farmer.password = await bcrypt.hash(newPassword, 10);
+        await farmer.save();
+
+        return res.render("message", {
+            title: "Password Updated",
+            message: "Your farmer password has been updated successfully.",
+            backLink: "/farmer/login"
         });
+
     } catch (error) {
-        console.log(error);
+        console.log("MONGO FARMER FORGOT PASSWORD ERROR:", error);
+
         return res.render("error", {
             message: "Server error.",
             backLink: "/farmer/forgot-password"
@@ -824,44 +841,27 @@ app.post("/worker/forgot-password", async (req, res) => {
     try {
         const { email, phone, newPassword } = req.body;
 
-        const query = "SELECT * FROM workers WHERE email = ? AND phone = ?";
-        db.query(query, [email, phone], async (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.render("error", {
-                    message: "Error while verifying worker details.",
-                    backLink: "/worker/forgot-password"
-                });
-            }
+        const worker = await Worker.findOne({ email, phone });
 
-            if (result.length === 0) {
-                return res.render("error", {
-                    message: "Worker account not found with given email and phone.",
-                    backLink: "/worker/forgot-password"
-                });
-            }
-
-            const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-            const updateQuery = "UPDATE workers SET password = ? WHERE email = ? AND phone = ?";
-            db.query(updateQuery, [hashedPassword, email, phone], (err, data) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Error updating password.",
-                        backLink: "/worker/forgot-password"
-                    });
-                }
-
-                return res.render("message", {
-                    title: "Password Updated",
-                    message: "Your worker password has been updated successfully.",
-                    backLink: "/worker/login"
-                });
+        if (!worker) {
+            return res.render("error", {
+                message: "Worker account not found with given email and phone.",
+                backLink: "/worker/forgot-password"
             });
+        }
+
+        worker.password = await bcrypt.hash(newPassword, 10);
+        await worker.save();
+
+        return res.render("message", {
+            title: "Password Updated",
+            message: "Your worker password has been updated successfully.",
+            backLink: "/worker/login"
         });
+
     } catch (error) {
-        console.log(error);
+        console.log("MONGO WORKER FORGOT PASSWORD ERROR:", error);
+
         return res.render("error", {
             message: "Server error.",
             backLink: "/worker/forgot-password"
