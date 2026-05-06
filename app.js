@@ -9,8 +9,31 @@ const db = require("./config/db");
 const translations = require("./locales/translations");
 const os = require("os");
 const crypto = require("crypto");
+const Razorpay = require("razorpay");
 
-const fakePayments = {};
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
+const paymentSessions = {};
+
+function createRazorpayOrder(amount, receipt) {
+    return razorpay.orders.create({
+        amount: Math.round(Number(amount) * 100),
+        currency: "INR",
+        receipt
+    });
+}
+
+function verifyRazorpaySignature(orderId, paymentId, signature) {
+    const generatedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(orderId + "|" + paymentId)
+        .digest("hex");
+
+    return generatedSignature === signature;
+}
 
 function getLocalIp() {
     const nets = os.networkInterfaces();
@@ -240,21 +263,81 @@ app.get("/farmer/post-job", checkSubscription,(req, res) => {
     res.render("post-job");
 });
 
-app.post("/farmer/register", (req, res) => {
+app.post("/farmer/post-job", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
+        }
+
+        if (req.subscriptionExpired) {
+            return res.render("message", {
+                title: "Subscription Expired",
+                message: "Renew subscription to post jobs.",
+                backLink: "/farmer/renew-subscription"
+            });
+        }
+
+        const currentLang = req.query.lang || "en";
+        const amount = process.env.JOB_POSTING_FEE || 29;
+
+        const paymentSessionId = crypto.randomBytes(16).toString("hex");
+        const order = await createRazorpayOrder(amount, `job_post_${Date.now()}`);
+
+        paymentSessions[paymentSessionId] = {
+            type: "job_post",
+            orderId: order.id,
+            amount,
+            farmerId: req.session.farmer.id,
+            data: {
+                ...req.body,
+                currentLang
+            }
+        };
+
+        res.render("razorpay-payment", {
+            title: "Job Posting Payment",
+            amount,
+            order,
+            paymentSessionId,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            currentLang,
+            cancelLink: "/farmer/post-job",
+            customerName: req.session.farmer.full_name,
+            customerEmail: req.session.farmer.email,
+            customerPhone: req.session.farmer.phone
+        });
+
+    } catch (err) {
+        console.log("JOB POST PAYMENT ERROR:", err);
+        res.render("error", {
+            message: "Unable to start job posting payment.",
+            backLink: "/farmer/post-job"
+        });
+    }
+});
+
+
+app.post("/farmer/register", async (req, res) => {
     try {
         const { full_name, phone, village, email, password, subscription_plan } = req.body;
         const currentLang = req.query.lang || "en";
 
         if (!subscription_plan) {
-            return res.send("Select subscription plan");
+            return res.render("error", {
+                message: "Please select a subscription plan.",
+                backLink: `/farmer/register?lang=${currentLang}`
+            });
         }
 
         const [amount, months] = subscription_plan.split("|");
 
-        const token = crypto.randomBytes(16).toString("hex");
+        const paymentSessionId = crypto.randomBytes(16).toString("hex");
+        const order = await createRazorpayOrder(amount, `farmer_reg_${Date.now()}`);
 
-        fakePayments[token] = {
-            status: "pending",
+        paymentSessions[paymentSessionId] = {
+            type: "farmer_register",
+            orderId: order.id,
+            amount,
             data: {
                 full_name,
                 phone,
@@ -263,240 +346,31 @@ app.post("/farmer/register", (req, res) => {
                 password,
                 subscription_amount: amount,
                 subscription_months: months,
-                subscription_plan_label: `${amount} - ${months} months`,
+                subscription_plan_label: `₹${amount} - ${months} Months`,
                 currentLang
             }
         };
 
-        req.session.paymentToken = token;
-
-        res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
-
-    } catch (err) {
-        console.log("REGISTER ERROR:", err);
-        res.send("Error in register");
-    }
-});
-
-app.get("/farmer/subscription-payment", (req, res) => {
-    const token = req.session.paymentToken;
-    const currentLang = req.query.lang || "en";
-
-    if (!token || !fakePayments[token]) {
-        return res.redirect(`/farmer/register?lang=${currentLang}`);
-    }
-
-    const farmerData = fakePayments[token].data;
-
-    const laptopIp = "10.192.195.208"; // keep your IP
-
-    const paymentUrl = `http://${laptopIp}:5000/farmer/demo-pay/${token}?lang=${currentLang}`;
-
-    res.render("farmer-subscription-payment", {
-        farmerData,
-        paymentUrl,
-        paymentToken: token,
-        currentLang
-    });
-});
-
-app.post("/farmer/confirm-payment", (req, res) => {
-    try {
-        const { token } = req.body;
-
-        if (!token || !fakePayments[token]) {
-            return res.render("error", {
-                message: "Invalid payment session.",
-                backLink: "/farmer/register"
-            });
-        }
-
-        if (fakePayments[token].status !== "done") {
-            return res.render("error", {
-                message: "Payment not completed yet.",
-                backLink: "/farmer/register"
-            });
-        }
-
-        const data = fakePayments[token].data;
-
-        if (fakePayments[token].type === "renewal") {
-            const farmerId = fakePayments[token].farmerId;
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
-
-            const updateQuery = `
-                UPDATE farmers
-                SET subscription_plan = ?,
-                    subscription_amount = ?,
-                    subscription_months = ?,
-                    subscription_status = 'Paid',
-                    subscription_start_date = ?,
-                    subscription_end_date = ?
-                WHERE id = ?
-            `;
-
-            db.query(
-                updateQuery,
-                [
-                    data.subscription_plan_label,
-                    parseFloat(data.subscription_amount),
-                    parseInt(data.subscription_months),
-                    startDate.toISOString().split("T")[0],
-                    endDate.toISOString().split("T")[0],
-                    farmerId
-                ],
-                (err) => {
-                    if (err) {
-                        console.log(err);
-                        return res.render("error", {
-                            message: "Error renewing subscription.",
-                            backLink: "/farmer/renew-subscription"
-                        });
-                    }
-
-                    req.session.farmer.subscription_plan = data.subscription_plan_label;
-                    req.session.farmer.subscription_amount = parseFloat(data.subscription_amount);
-                    req.session.farmer.subscription_months = parseInt(data.subscription_months);
-                    req.session.farmer.subscription_status = "Paid";
-                    req.session.farmer.subscription_start_date = startDate.toISOString().split("T")[0];
-                    req.session.farmer.subscription_end_date = endDate.toISOString().split("T")[0];
-
-                    delete fakePayments[token];
-
-                    return res.render("message", {
-                        title: "Subscription Renewed",
-                        message: "Your subscription has been renewed successfully.",
-                        backLink: "/farmer/dashboard"
-                    });
-                }
-            );
-
-            return;
-        }
-
-        const {
-            full_name,
-            phone,
-            village,
-            email,
-            password,
-            subscription_amount,
-            subscription_months,
-            subscription_plan_label
-        } = data;
-
-        bcrypt.hash(password, 10, (hashErr, hashedPassword) => {
-            if (hashErr) {
-                console.log(hashErr);
-                return res.render("error", {
-                    message: "Error hashing password.",
-                    backLink: "/farmer/register"
-                });
-            }
-
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + parseInt(subscription_months));
-
-            const insertQuery = `
-                INSERT INTO farmers
-                (
-                    full_name,
-                    phone,
-                    village,
-                    email,
-                    password,
-                    subscription_plan,
-                    subscription_amount,
-                    subscription_months,
-                    subscription_status,
-                    subscription_start_date,
-                    subscription_end_date
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-
-            db.query(
-                insertQuery,
-                [
-                    full_name,
-                    phone,
-                    village,
-                    email,
-                    hashedPassword,
-                    subscription_plan_label,
-                    subscription_amount,
-                    subscription_months,
-                    "Paid",
-                    startDate.toISOString().split("T")[0],
-                    endDate.toISOString().split("T")[0]
-                ],
-                (err) => {
-                    if (err) {
-                        console.log(err);
-                        return res.render("error", {
-                            message: "DB error while creating farmer.",
-                            backLink: "/farmer/register"
-                        });
-                    }
-
-                    delete fakePayments[token];
-
-                    return res.render("message", {
-                        title: "Success",
-                        message: "Payment done. Farmer account created.",
-                        backLink: "/farmer/login"
-                    });
-                }
-            );
+        res.render("razorpay-payment", {
+            title: "Farmer Subscription Payment",
+            amount,
+            order,
+            paymentSessionId,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            currentLang,
+            cancelLink: "/farmer/register",
+            customerName: full_name,
+            customerEmail: email,
+            customerPhone: phone
         });
 
-    } catch (error) {
-        console.log(error);
-        return res.render("error", {
-            message: "Server error.",
+    } catch (err) {
+        console.log("FARMER REGISTER PAYMENT ERROR:", err);
+        res.render("error", {
+            message: "Unable to start Razorpay payment.",
             backLink: "/farmer/register"
         });
     }
-});
-
-app.get("/farmer/demo-pay/:token", (req, res) => {
-    const token = req.params.token;
-    const currentLang = req.query.lang || "en";
-
-    if (!fakePayments[token]) {
-        return res.render("error", {
-            message: "Invalid payment link.",
-            backLink: `/farmer/register?lang=${currentLang}`
-        });
-    }
-
-    res.render("farmer-demo-pay", {
-        token,
-        currentLang
-    });
-});
-
-app.post("/farmer/demo-pay/:token", (req, res) => {
-    const token = req.params.token;
-    const currentLang = req.query.lang || "en";
-
-    if (!fakePayments[token]) {
-        return res.render("error", {
-            message: "Invalid payment link.",
-            backLink: `/farmer/register?lang=${currentLang}`
-        });
-    }
-
-    fakePayments[token].status = "done";
-
-    return res.render("message", {
-        title: "Payment Successful",
-        message: "Demo payment completed successfully. Return to the laptop screen.",
-        backLink: `/?lang=${currentLang}`
-    });
 });
 
 app.get("/farmer/dashboard",checkSubscription, (req, res) => {
@@ -593,50 +467,58 @@ app.post("/worker/register", async (req, res) => {
     try {
         const { full_name, phone, village, experience_level, email, password } = req.body;
         let { skill_category } = req.body;
+        const currentLang = req.query.lang || "en";
+
         if (!skill_category || (Array.isArray(skill_category) && skill_category.length === 0)) {
             return res.render("error", {
                 message: "Please select at least one skill.",
                 backLink: "/worker/register"
             });
         }
-        // if multiple selected, convert array to comma-separated string
+
         if (Array.isArray(skill_category)) {
             skill_category = skill_category.join(",");
         }
-        const checkQuery = "SELECT * FROM workers WHERE email = ?";
-        db.query(checkQuery, [email], async (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.send("Database error while checking worker.");
+
+        const amount = process.env.WORKER_REGISTRATION_FEE || 49;
+        const paymentSessionId = crypto.randomBytes(16).toString("hex");
+        const order = await createRazorpayOrder(amount, `worker_reg_${Date.now()}`);
+
+        paymentSessions[paymentSessionId] = {
+            type: "worker_register",
+            orderId: order.id,
+            amount,
+            data: {
+                full_name,
+                phone,
+                village,
+                experience_level,
+                email,
+                password,
+                skill_category,
+                currentLang
             }
+        };
 
-            if (result.length > 0) {
-                return res.send("Email already registered.");
-            }
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const insertQuery = `
-                INSERT INTO workers (full_name, phone, email, password, skill_category, experience_level, village)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `;
-
-            db.query(
-                insertQuery,
-                [full_name, phone, email, hashedPassword, skill_category, experience_level, village],
-                (err, data) => {
-                    if (err) {
-                        console.log(err);
-                        return res.send("Error registering worker.");
-                    }
-
-                    res.redirect("/worker/login");
-                }
-            );
+        res.render("razorpay-payment", {
+            title: "Worker Registration Fee",
+            amount,
+            order,
+            paymentSessionId,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            currentLang,
+            cancelLink: "/worker/register",
+            customerName: full_name,
+            customerEmail: email,
+            customerPhone: phone
         });
+
     } catch (error) {
-        console.log(error);
-        res.send("Server error.");
+        console.log("WORKER PAYMENT ERROR:", error);
+        res.render("error", {
+            message: "Unable to start worker registration payment.",
+            backLink: "/worker/register"
+        });
     }
 });
 
@@ -1612,20 +1494,6 @@ app.get("/test-phone", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.get("/check-payment-status", (req, res) => {
-    const token = req.session.paymentToken;
-
-    if (!token) {
-        return res.json({ status: "pending" });
-    }
-
-    if (fakePayments[token] && fakePayments[token].status === "done") {
-        return res.json({ status: "done" });
-    }
-
-    return res.json({ status: "pending" });
-});
-
 app.get("/marketplace", (req, res) => {
     const { category = "", item_type = "", location = "", keyword = "" } = req.query;
 
@@ -1988,39 +1856,59 @@ app.get("/farmer/renew-subscription", (req, res) => {
     res.render("farmer-renew-subscription");
 });
 
-app.post("/farmer/renew-subscription", (req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
+app.post("/farmer/renew-subscription", async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
+        }
 
-    const currentLang = req.query.lang || "en";
-    const { subscription_plan } = req.body;
+        const currentLang = req.query.lang || "en";
+        const { subscription_plan } = req.body;
 
-    if (!subscription_plan) {
-        return res.render("error", {
-            message: "Please select a subscription plan.",
-            backLink: `/farmer/renew-subscription?lang=${currentLang}`
+        if (!subscription_plan) {
+            return res.render("error", {
+                message: "Please select a subscription plan.",
+                backLink: `/farmer/renew-subscription?lang=${currentLang}`
+            });
+        }
+
+        const [amount, months] = subscription_plan.split("|");
+        const paymentSessionId = crypto.randomBytes(16).toString("hex");
+        const order = await createRazorpayOrder(amount, `farmer_renew_${Date.now()}`);
+
+        paymentSessions[paymentSessionId] = {
+            type: "farmer_renewal",
+            orderId: order.id,
+            amount,
+            farmerId: req.session.farmer.id,
+            data: {
+                subscription_amount: amount,
+                subscription_months: months,
+                subscription_plan_label: `₹${amount} - ${months} Months`,
+                currentLang
+            }
+        };
+
+        res.render("razorpay-payment", {
+            title: "Renew Subscription",
+            amount,
+            order,
+            paymentSessionId,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            currentLang,
+            cancelLink: "/farmer/renew-subscription",
+            customerName: req.session.farmer.full_name,
+            customerEmail: req.session.farmer.email,
+            customerPhone: req.session.farmer.phone
+        });
+
+    } catch (err) {
+        console.log("RENEW PAYMENT ERROR:", err);
+        res.render("error", {
+            message: "Unable to start renewal payment.",
+            backLink: "/farmer/renew-subscription"
         });
     }
-
-    const [amount, months] = subscription_plan.split("|");
-    const token = crypto.randomBytes(16).toString("hex");
-
-    fakePayments[token] = {
-        status: "pending",
-        type: "renewal",
-        farmerId: req.session.farmer.id,
-        data: {
-            subscription_amount: amount,
-            subscription_months: months,
-            subscription_plan_label: `${amount} - ${months} months`,
-            currentLang
-        }
-    };
-
-    req.session.paymentToken = token;
-
-    res.redirect(`/farmer/subscription-payment?lang=${currentLang}`);
 });
 
 app.get("/krishi-yojanas", (req, res) => {
@@ -2268,11 +2156,264 @@ app.get("/krishi-yojanas", (req, res) => {
 });
 });
 
+app.post("/razorpay/verify", async (req, res) => {
+    try {
+        const {
+            paymentSessionId,
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        } = req.body;
+
+        const sessionData = paymentSessions[paymentSessionId];
+
+        if (!sessionData) {
+            return res.render("error", {
+                message: "Invalid payment session.",
+                backLink: "/"
+            });
+        }
+
+        if (sessionData.orderId !== razorpay_order_id) {
+            return res.render("error", {
+                message: "Order mismatch. Payment verification failed.",
+                backLink: "/"
+            });
+        }
+
+        const isValid = verifyRazorpaySignature(
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature
+        );
+
+        if (!isValid) {
+            return res.render("error", {
+                message: "Payment signature verification failed.",
+                backLink: "/"
+            });
+        }
+
+        const data = sessionData.data;
+
+        if (sessionData.type === "farmer_register") {
+            const hashedPassword = await bcrypt.hash(data.password, 10);
+
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
+
+            const query = `
+                INSERT INTO farmers
+                (full_name, phone, village, email, password, subscription_plan, subscription_amount, subscription_months, subscription_status, subscription_start_date, subscription_end_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?, ?)
+            `;
+
+            db.query(query, [
+                data.full_name,
+                data.phone,
+                data.village,
+                data.email,
+                hashedPassword,
+                data.subscription_plan_label,
+                data.subscription_amount,
+                data.subscription_months,
+                startDate.toISOString().split("T")[0],
+                endDate.toISOString().split("T")[0]
+            ], (err) => {
+                if (err) {
+                    console.log(err);
+                    return res.render("error", {
+                        message: "Payment successful, but farmer account creation failed.",
+                        backLink: "/farmer/register"
+                    });
+                }
+
+                delete paymentSessions[paymentSessionId];
+
+                return res.render("message", {
+                    title: "Payment Successful",
+                    message: "Farmer account created successfully.",
+                    backLink: "/farmer/login"
+                });
+            });
+
+            return;
+        }
+
+        if (sessionData.type === "farmer_renewal") {
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
+
+            const query = `
+                UPDATE farmers
+                SET subscription_plan = ?,
+                    subscription_amount = ?,
+                    subscription_months = ?,
+                    subscription_status = 'Paid',
+                    subscription_start_date = ?,
+                    subscription_end_date = ?
+                WHERE id = ?
+            `;
+
+            db.query(query, [
+                data.subscription_plan_label,
+                data.subscription_amount,
+                data.subscription_months,
+                startDate.toISOString().split("T")[0],
+                endDate.toISOString().split("T")[0],
+                sessionData.farmerId
+            ], (err) => {
+                if (err) {
+                    console.log(err);
+                    return res.render("error", {
+                        message: "Payment successful, but renewal failed.",
+                        backLink: "/farmer/renew-subscription"
+                    });
+                }
+
+                if (req.session.farmer) {
+                    req.session.farmer.subscription_plan = data.subscription_plan_label;
+                    req.session.farmer.subscription_amount = data.subscription_amount;
+                    req.session.farmer.subscription_months = data.subscription_months;
+                    req.session.farmer.subscription_status = "Paid";
+                    req.session.farmer.subscription_start_date = startDate.toISOString().split("T")[0];
+                    req.session.farmer.subscription_end_date = endDate.toISOString().split("T")[0];
+                }
+
+                delete paymentSessions[paymentSessionId];
+
+                return res.render("message", {
+                    title: "Subscription Renewed",
+                    message: "Your subscription has been renewed successfully.",
+                    backLink: "/farmer/dashboard"
+                });
+            });
+
+            return;
+        }
+
+        if (sessionData.type === "worker_register") {
+            const hashedPassword = await bcrypt.hash(data.password, 10);
+
+            const query = `
+                INSERT INTO workers
+                (full_name, phone, email, password, skill_category, experience_level, village)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            db.query(query, [
+                data.full_name,
+                data.phone,
+                data.email,
+                hashedPassword,
+                data.skill_category,
+                data.experience_level,
+                data.village
+            ], (err) => {
+                if (err) {
+                    console.log(err);
+                    return res.render("error", {
+                        message: "Payment successful, but worker registration failed.",
+                        backLink: "/worker/register"
+                    });
+                }
+
+                delete paymentSessions[paymentSessionId];
+
+                return res.render("message", {
+                    title: "Worker Registered",
+                    message: "Payment successful. Worker account created successfully.",
+                    backLink: "/worker/login"
+                });
+            });
+
+            return;
+        }
+
+        if (sessionData.type === "job_post") {
+            const query = `
+                INSERT INTO jobs
+                (farmer_id, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date, status, version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', 1)
+            `;
+
+            db.query(query, [
+                sessionData.farmerId,
+                data.job_title,
+                data.category,
+                data.work_type,
+                data.description || null,
+                data.location,
+                data.wage,
+                data.workers_required,
+                data.payment_mode,
+                data.start_date || null,
+                data.end_date || null
+            ], (err, result) => {
+                if (err) {
+                    console.log(err);
+                    return res.render("error", {
+                        message: "Payment successful, but job posting failed.",
+                        backLink: "/farmer/post-job"
+                    });
+                }
+
+                const jobId = result.insertId;
+
+                const versionQuery = `
+                    INSERT INTO job_versions
+                    (job_id, version, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date)
+                    VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+
+                db.query(versionQuery, [
+                    jobId,
+                    data.job_title,
+                    data.category,
+                    data.work_type,
+                    data.description || null,
+                    data.location,
+                    data.wage,
+                    data.workers_required,
+                    data.payment_mode,
+                    data.start_date || null,
+                    data.end_date || null
+                ], (versionErr) => {
+                    if (versionErr) {
+                        console.log(versionErr);
+                    }
+
+                    delete paymentSessions[paymentSessionId];
+
+                    return res.render("message", {
+                        title: "Job Posted",
+                        message: "Payment successful. Your job has been posted.",
+                        backLink: "/farmer/dashboard"
+                    });
+                });
+            });
+
+            return;
+        }
+
+        return res.render("error", {
+            message: "Unknown payment type.",
+            backLink: "/"
+        });
+
+    } catch (err) {
+        console.log("RAZORPAY VERIFY ERROR:", err);
+        return res.render("error", {
+            message: "Server error while verifying payment.",
+            backLink: "/"
+        });
+    }
+});
+
 // Start server on all networks (important)
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("=================================");
     console.log(`🚀 Server running on:`);
     console.log(`👉 Local:   http://localhost:${PORT}`);
-    console.log(`👉 Network: http://127.0.0.1:${PORT}`);
-    console.log("=================================");
 });
