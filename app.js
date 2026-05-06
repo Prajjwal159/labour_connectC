@@ -16,6 +16,7 @@ const Farmer = require("./models/Farmer");
 const Worker = require("./models/Worker");
 const Job = require("./models/Job");
 const JobApplication = require("./models/JobApplication");
+const MarketplaceItem = require("./models/MarketplaceItem");
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -1083,54 +1084,40 @@ app.get("/test-phone", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.get("/marketplace", (req, res) => {
-    const { category = "", item_type = "", location = "", keyword = "" } = req.query;
+app.get("/marketplace", async (req, res) => {
+    try {
+        const { category = "", item_type = "", location = "", keyword = "" } = req.query;
 
-    let query = `
-        SELECT marketplace_items.*, farmers.full_name
-        FROM marketplace_items
-        JOIN farmers ON marketplace_items.farmer_id = farmers.id
-        WHERE marketplace_items.status = 'Available'
-    `;
+        const filter = { status: "Available" };
 
-    const params = [];
+        if (category) filter.category = category;
+        if (item_type) filter.item_type = item_type;
+        if (location) filter.location = { $regex: location, $options: "i" };
+        if (keyword) filter.item_title = { $regex: keyword, $options: "i" };
 
-    if (category) {
-        query += " AND marketplace_items.category = ?";
-        params.push(category);
-    }
+        const items = await MarketplaceItem.find(filter)
+            .populate("farmer_id", "full_name")
+            .sort({ createdAt: -1 })
+            .lean();
 
-    if (item_type) {
-        query += " AND marketplace_items.item_type = ?";
-        params.push(item_type);
-    }
-
-    if (location) {
-        query += " AND marketplace_items.location LIKE ?";
-        params.push(`%${location}%`);
-    }
-
-    if (keyword) {
-        query += " AND marketplace_items.item_title LIKE ?";
-        params.push(`%${keyword}%`);
-    }
-
-    query += " ORDER BY marketplace_items.created_at DESC";
-
-    db.query(query, params, (err, items) => {
-        if (err) {
-            console.log("MARKETPLACE ERROR:", err);
-            return res.render("error", {
-                message: "Error fetching marketplace items.",
-                backLink: "/"
-            });
-        }
+        const formattedItems = items.map(item => ({
+            ...item,
+            id: item._id,
+            full_name: item.farmer_id?.full_name || "Farmer"
+        }));
 
         res.render("marketplace", {
-            items,
+            items: formattedItems,
             filters: { category, item_type, location, keyword }
         });
-    });
+
+    } catch (err) {
+        console.log("MONGO MARKETPLACE ERROR:", err);
+        res.render("error", {
+            message: "Error fetching marketplace items.",
+            backLink: "/"
+        });
+    }
 });
 
 app.get("/farmer/my-marketplace-items", checkSubscription,(req, res) => {
@@ -1206,67 +1193,45 @@ app.get("/marketplace/item/:id", (req, res) => {
     });
 });
 
-app.post("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
-    if (req.subscriptionExpired) {
-    return res.render("message", {
-        title: "Subscription Expired",
-        message: "Renew subscription to post jobs.",
-        backLink: "/farmer/renew-subscription"
-    });
-}
-
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const farmer_id = req.session.farmer.id;
-
-    const {
-        item_title,
-        category,
-        item_type,
-        description,
-        price,
-        location,
-        contact_phone,
-        image_url
-    } = req.body;
-
-    const query = `
-        INSERT INTO marketplace_items
-        (farmer_id, item_title, category, item_type, description, price, location, contact_phone, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(
-        query,
-        [
-            farmer_id,
-            item_title,
-            category,
-            item_type,
-            description,
-            price,
-            location,
-            contact_phone,
-            image_url
-        ],
-        (err) => {
-            if (err) {
-                console.log("POST MARKETPLACE ITEM ERROR:", err);
-                return res.render("error", {
-                    message: "Error posting marketplace item.",
-                    backLink: "/farmer/post-marketplace-item"
-                });
-            }
-
+app.post("/farmer/post-marketplace-item", checkSubscription, async (req, res) => {
+    try {
+        if (req.subscriptionExpired) {
             return res.render("message", {
-                title: "Item Posted",
-                message: "Your marketplace item has been posted successfully.",
-                backLink: "/marketplace"
+                title: "Subscription Expired",
+                message: "Renew subscription to post items.",
+                backLink: "/farmer/renew-subscription"
             });
         }
-    );
+
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
+        }
+
+        await MarketplaceItem.create({
+            farmer_id: req.session.farmer.id,
+            item_title: req.body.item_title,
+            category: req.body.category,
+            item_type: req.body.item_type,
+            description: req.body.description,
+            price: Number(req.body.price),
+            location: req.body.location,
+            contact_phone: req.body.contact_phone,
+            image_url: req.body.image_url
+        });
+
+        res.render("message", {
+            title: "Item Posted",
+            message: "Your marketplace item has been posted successfully.",
+            backLink: "/marketplace"
+        });
+
+    } catch (err) {
+        console.log("MONGO POST MARKETPLACE ERROR:", err);
+        res.render("error", {
+            message: "Error posting marketplace item.",
+            backLink: "/farmer/post-marketplace-item"
+        });
+    }
 });
 
 app.post("/farmer/delete-marketplace-item/:id", checkSubscription, (req, res) => {
