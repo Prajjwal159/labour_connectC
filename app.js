@@ -5,11 +5,14 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 require("dotenv").config();
+const connectMongoDB = require("./config/mongodb");
+connectMongoDB();
 const db = require("./config/db");
 const translations = require("./locales/translations");
 const os = require("os");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
+const Farmer = require("./models/Farmer");
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -2411,6 +2414,7 @@ app.post("/razorpay/verify", async (req, res) => {
         });
     }
 });
+
 
 // Start server on all networks (important)
 app.listen(PORT, "0.0.0.0", () => {
