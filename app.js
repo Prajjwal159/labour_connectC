@@ -142,25 +142,18 @@ app.get("/farmer/login", (req, res) => {
     res.render("farmer-login");
 });
 
-app.post("/farmer/login", (req, res) => {
-    const { email, password } = req.body;
+app.post("/farmer/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    const query = "SELECT * FROM farmers WHERE email = ?";
+        const farmer = await Farmer.findOne({ email });
 
-    db.query(query, [email], async (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.send("Database error during login.");
-        }
-
-        if (result.length === 0) {
+        if (!farmer) {
             return res.render("error", {
                 message: "Farmer account not found.",
                 backLink: "/farmer/login"
             });
         }
-
-        const farmer = result[0];
 
         const isMatch = await bcrypt.compare(password, farmer.password);
 
@@ -172,7 +165,7 @@ app.post("/farmer/login", (req, res) => {
         }
 
         req.session.farmer = {
-            id: farmer.id,
+            id: farmer._id.toString(),
             full_name: farmer.full_name,
             email: farmer.email,
             phone: farmer.phone,
@@ -186,7 +179,14 @@ app.post("/farmer/login", (req, res) => {
         };
 
         res.redirect("/farmer/dashboard");
-    });
+
+    } catch (err) {
+        console.log("MONGO FARMER LOGIN ERROR:", err);
+        res.render("error", {
+            message: "Server error during farmer login.",
+            backLink: "/farmer/login"
+        });
+    }
 });
 
 app.get("/worker/login", (req, res) => {
@@ -2200,49 +2200,44 @@ app.post("/razorpay/verify", async (req, res) => {
         const data = sessionData.data;
 
         if (sessionData.type === "farmer_register") {
-            const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
 
-            const query = `
-                INSERT INTO farmers
-                (full_name, phone, village, email, password, subscription_plan, subscription_amount, subscription_months, subscription_status, subscription_start_date, subscription_end_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Paid', ?, ?)
-            `;
+    try {
+        await Farmer.create({
+            full_name: data.full_name,
+            phone: data.phone,
+            village: data.village,
+            email: data.email,
+            password: hashedPassword,
+            subscription_plan: data.subscription_plan_label,
+            subscription_amount: Number(data.subscription_amount),
+            subscription_months: Number(data.subscription_months),
+            subscription_status: "Paid",
+            subscription_start_date: startDate,
+            subscription_end_date: endDate
+        });
 
-            db.query(query, [
-                data.full_name,
-                data.phone,
-                data.village,
-                data.email,
-                hashedPassword,
-                data.subscription_plan_label,
-                data.subscription_amount,
-                data.subscription_months,
-                startDate.toISOString().split("T")[0],
-                endDate.toISOString().split("T")[0]
-            ], (err) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Payment successful, but farmer account creation failed.",
-                        backLink: "/farmer/register"
-                    });
-                }
+        delete paymentSessions[paymentSessionId];
 
-                delete paymentSessions[paymentSessionId];
+        return res.render("message", {
+            title: "Payment Successful",
+            message: "Farmer account created successfully.",
+            backLink: "/farmer/login"
+        });
 
-                return res.render("message", {
-                    title: "Payment Successful",
-                    message: "Farmer account created successfully.",
-                    backLink: "/farmer/login"
-                });
-            });
+    } catch (err) {
+        console.log("MONGO FARMER REGISTER ERROR:", err);
 
-            return;
-        }
+        return res.render("error", {
+            message: "Payment successful, but farmer account creation failed.",
+            backLink: "/farmer/register"
+        });
+    }
+}
 
         if (sessionData.type === "farmer_renewal") {
             const startDate = new Date();
