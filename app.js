@@ -13,6 +13,8 @@ const os = require("os");
 const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Farmer = require("./models/Farmer");
+const Worker = require("./models/Worker");
+const Job = require("./models/Job");
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -193,25 +195,19 @@ app.get("/worker/login", (req, res) => {
     res.render("worker-login");
 });
 
-app.post("/worker/login", (req, res) => {
-    const { email, password } = req.body;
+app.post("/worker/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-    const query = "SELECT * FROM workers WHERE email = ?";
+        const worker = await Worker.findOne({ email });
 
-    db.query(query, [email], async (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.send("Database error during worker login.");
-        }
-
-        if (result.length === 0) {
+        if (!worker) {
             return res.render("error", {
                 message: "Worker account not found.",
                 backLink: "/worker/login"
             });
         }
 
-        const worker = result[0];
         const isMatch = await bcrypt.compare(password, worker.password);
 
         if (!isMatch) {
@@ -222,17 +218,27 @@ app.post("/worker/login", (req, res) => {
         }
 
         req.session.worker = {
-            id: worker.id,
+            id: worker._id.toString(),
             full_name: worker.full_name,
             email: worker.email,
             phone: worker.phone,
             village: worker.village,
-            skill_category: worker.skill_category,
+            skill_category: Array.isArray(worker.skill_category)
+                ? worker.skill_category.join(",")
+                : worker.skill_category,
             experience_level: worker.experience_level
         };
 
         res.redirect("/worker/dashboard");
-    });
+
+    } catch (err) {
+        console.log("MONGO WORKER LOGIN ERROR:", err);
+
+        res.render("error", {
+            message: "Server error during worker login.",
+            backLink: "/worker/login"
+        });
+    }
 });
 
 app.get("/worker/dashboard", (req, res) => {
@@ -376,85 +382,41 @@ app.post("/farmer/register", async (req, res) => {
     }
 });
 
-app.get("/farmer/dashboard",checkSubscription, (req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const farmer = req.session.farmer;
-
-    const jobsQuery = `
-        SELECT 
-            jobs.*,
-            COUNT(
-                CASE 
-                    WHEN job_applications.application_status IN ('Applied', 'Accepted') 
-                    THEN 1 
-                END
-            ) AS applied_count
-        FROM jobs
-        LEFT JOIN job_applications
-            ON jobs.id = job_applications.job_id
-            AND job_applications.job_version = jobs.version
-        WHERE jobs.farmer_id = ?
-        GROUP BY jobs.id
-        ORDER BY jobs.created_at DESC
-    `;
-
-    const marketplaceSummaryQuery = `
-        SELECT
-            COUNT(*) AS total_items,
-            SUM(CASE WHEN status = 'Available' THEN 1 ELSE 0 END) AS available_items,
-            SUM(CASE WHEN status = 'Sold' THEN 1 ELSE 0 END) AS sold_items
-        FROM marketplace_items
-        WHERE farmer_id = ?
-    `;
-
-    const recentMarketplaceItemsQuery = `
-        SELECT *
-        FROM marketplace_items
-        WHERE farmer_id = ?
-        ORDER BY created_at DESC
-        LIMIT 4
-    `;
-
-    db.query(jobsQuery, [farmer.id], (jobsErr, jobs) => {
-        if (jobsErr) {
-            console.log("FARMER DASHBOARD JOBS ERROR:", jobsErr);
-            return res.send("Error fetching farmer jobs.");
+app.get("/farmer/dashboard", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
         }
 
-        db.query(marketplaceSummaryQuery, [farmer.id], (marketErr, marketResults) => {
-            if (marketErr) {
-                console.log("FARMER DASHBOARD MARKETPLACE ERROR:", marketErr);
-                return res.send("Error fetching marketplace summary.");
-            }
+        const farmer = req.session.farmer;
 
-            db.query(recentMarketplaceItemsQuery, [farmer.id], (recentErr, recentMarketplaceItems) => {
-                if (recentErr) {
-                    console.log("FARMER DASHBOARD RECENT MARKETPLACE ERROR:", recentErr);
-                    return res.send("Error fetching recent marketplace items.");
-                }
+        const jobs = await Job.find({ farmer_id: farmer.id })
+            .sort({ createdAt: -1 })
+            .lean();
 
-                const marketplaceSummary = marketResults[0] || {
-                    total_items: 0,
-                    available_items: 0,
-                    sold_items: 0
-                };
+        const marketplaceSummary = {
+            total_items: 0,
+            available_items: 0,
+            sold_items: 0
+        };
 
-                const subscriptionWarning = getSubscriptionWarning(farmer.subscription_end_date);
+        const recentMarketplaceItems = [];
 
-                res.render("farmer-dashboard", {
-                    farmer,
-                    jobs,
-                    marketplaceSummary,
-                    recentMarketplaceItems,
-                    subscriptionWarning,
-                    subscriptionExpired: req.subscriptionExpired
-                });
-            });
+        const subscriptionWarning = getSubscriptionWarning(farmer.subscription_end_date);
+
+        res.render("farmer-dashboard", {
+            farmer,
+            jobs,
+            marketplaceSummary,
+            recentMarketplaceItems,
+            subscriptionWarning,
+            subscriptionExpired: req.subscriptionExpired
         });
-    });
+
+    } catch (err) {
+        console.log("MONGO FARMER DASHBOARD ERROR:", err);
+        res.send("Error loading farmer dashboard.");
+    }
 });
 
 app.get("/logout", (req, res) => {
@@ -2240,161 +2202,115 @@ app.post("/razorpay/verify", async (req, res) => {
 }
 
         if (sessionData.type === "farmer_renewal") {
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
 
-            const query = `
-                UPDATE farmers
-                SET subscription_plan = ?,
-                    subscription_amount = ?,
-                    subscription_months = ?,
-                    subscription_status = 'Paid',
-                    subscription_start_date = ?,
-                    subscription_end_date = ?
-                WHERE id = ?
-            `;
+    try {
+        await Farmer.findByIdAndUpdate(sessionData.farmerId, {
+            subscription_plan: data.subscription_plan_label,
+            subscription_amount: Number(data.subscription_amount),
+            subscription_months: Number(data.subscription_months),
+            subscription_status: "Paid",
+            subscription_start_date: startDate,
+            subscription_end_date: endDate
+        });
 
-            db.query(query, [
-                data.subscription_plan_label,
-                data.subscription_amount,
-                data.subscription_months,
-                startDate.toISOString().split("T")[0],
-                endDate.toISOString().split("T")[0],
-                sessionData.farmerId
-            ], (err) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Payment successful, but renewal failed.",
-                        backLink: "/farmer/renew-subscription"
-                    });
-                }
-
-                if (req.session.farmer) {
-                    req.session.farmer.subscription_plan = data.subscription_plan_label;
-                    req.session.farmer.subscription_amount = data.subscription_amount;
-                    req.session.farmer.subscription_months = data.subscription_months;
-                    req.session.farmer.subscription_status = "Paid";
-                    req.session.farmer.subscription_start_date = startDate.toISOString().split("T")[0];
-                    req.session.farmer.subscription_end_date = endDate.toISOString().split("T")[0];
-                }
-
-                delete paymentSessions[paymentSessionId];
-
-                return res.render("message", {
-                    title: "Subscription Renewed",
-                    message: "Your subscription has been renewed successfully.",
-                    backLink: "/farmer/dashboard"
-                });
-            });
-
-            return;
+        if (req.session.farmer) {
+            req.session.farmer.subscription_plan = data.subscription_plan_label;
+            req.session.farmer.subscription_amount = Number(data.subscription_amount);
+            req.session.farmer.subscription_months = Number(data.subscription_months);
+            req.session.farmer.subscription_status = "Paid";
+            req.session.farmer.subscription_start_date = startDate;
+            req.session.farmer.subscription_end_date = endDate;
         }
 
+        delete paymentSessions[paymentSessionId];
+
+        return res.render("message", {
+            title: "Subscription Renewed",
+            message: "Your subscription has been renewed successfully.",
+            backLink: "/farmer/dashboard"
+        });
+
+    } catch (err) {
+        console.log("MONGO FARMER RENEWAL ERROR:", err);
+
+        return res.render("error", {
+            message: "Payment successful, but renewal failed.",
+            backLink: "/farmer/renew-subscription"
+        });
+    }
+}
         if (sessionData.type === "worker_register") {
-            const hashedPassword = await bcrypt.hash(data.password, 10);
+    try {
+        const hashedPassword = await bcrypt.hash(data.password, 10);
 
-            const query = `
-                INSERT INTO workers
-                (full_name, phone, email, password, skill_category, experience_level, village)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `;
+        await Worker.create({
+            full_name: data.full_name,
+            phone: data.phone,
+            email: data.email,
+            password: hashedPassword,
+            skill_category: Array.isArray(data.skill_category)
+                ? data.skill_category
+                : data.skill_category.split(",").map(s => s.trim()),
+            experience_level: data.experience_level,
+            village: data.village
+        });
 
-            db.query(query, [
-                data.full_name,
-                data.phone,
-                data.email,
-                hashedPassword,
-                data.skill_category,
-                data.experience_level,
-                data.village
-            ], (err) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Payment successful, but worker registration failed.",
-                        backLink: "/worker/register"
-                    });
-                }
+        delete paymentSessions[paymentSessionId];
 
-                delete paymentSessions[paymentSessionId];
+        return res.render("message", {
+            title: "Worker Registered",
+            message: "Payment successful. Worker account created successfully.",
+            backLink: "/worker/login"
+        });
 
-                return res.render("message", {
-                    title: "Worker Registered",
-                    message: "Payment successful. Worker account created successfully.",
-                    backLink: "/worker/login"
-                });
-            });
+    } catch (err) {
+        console.log("MONGO WORKER REGISTER ERROR:", err);
 
-            return;
-        }
+        return res.render("error", {
+            message: "Payment successful, but worker registration failed.",
+            backLink: "/worker/register"
+        });
+    }
+}
 
         if (sessionData.type === "job_post") {
-            const query = `
-                INSERT INTO jobs
-                (farmer_id, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date, status, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', 1)
-            `;
+    try {
+        await Job.create({
+            farmer_id: sessionData.farmerId,
+            job_title: data.job_title,
+            category: data.category,
+            work_type: data.work_type,
+            description: data.description || "",
+            location: data.location,
+            wage: Number(data.wage),
+            workers_required: Number(data.workers_required),
+            payment_mode: data.payment_mode,
+            start_date: data.start_date || null,
+            end_date: data.end_date || null,
+            status: "Open",
+            version: 1
+        });
 
-            db.query(query, [
-                sessionData.farmerId,
-                data.job_title,
-                data.category,
-                data.work_type,
-                data.description || null,
-                data.location,
-                data.wage,
-                data.workers_required,
-                data.payment_mode,
-                data.start_date || null,
-                data.end_date || null
-            ], (err, result) => {
-                if (err) {
-                    console.log(err);
-                    return res.render("error", {
-                        message: "Payment successful, but job posting failed.",
-                        backLink: "/farmer/post-job"
-                    });
-                }
+        delete paymentSessions[paymentSessionId];
 
-                const jobId = result.insertId;
+        return res.render("message", {
+            title: "Job Posted",
+            message: "Payment successful. Your job has been posted.",
+            backLink: "/farmer/dashboard"
+        });
 
-                const versionQuery = `
-                    INSERT INTO job_versions
-                    (job_id, version, job_title, category, work_type, description, location, wage, workers_required, payment_mode, start_date, end_date)
-                    VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `;
+    } catch (err) {
+        console.log("MONGO JOB POST ERROR:", err);
 
-                db.query(versionQuery, [
-                    jobId,
-                    data.job_title,
-                    data.category,
-                    data.work_type,
-                    data.description || null,
-                    data.location,
-                    data.wage,
-                    data.workers_required,
-                    data.payment_mode,
-                    data.start_date || null,
-                    data.end_date || null
-                ], (versionErr) => {
-                    if (versionErr) {
-                        console.log(versionErr);
-                    }
-
-                    delete paymentSessions[paymentSessionId];
-
-                    return res.render("message", {
-                        title: "Job Posted",
-                        message: "Payment successful. Your job has been posted.",
-                        backLink: "/farmer/dashboard"
-                    });
-                });
-            });
-
-            return;
-        }
+        return res.render("error", {
+            message: "Payment successful, but job posting failed.",
+            backLink: "/farmer/post-job"
+        });
+    }
+}
 
         return res.render("error", {
             message: "Unknown payment type.",
