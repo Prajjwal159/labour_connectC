@@ -1120,30 +1120,30 @@ app.get("/marketplace", async (req, res) => {
     }
 });
 
-app.get("/farmer/my-marketplace-items", checkSubscription,(req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
+app.get("/farmer/my-marketplace-items", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) return res.redirect("/farmer/login");
+
+        const items = await MarketplaceItem.find({
+            farmer_id: req.session.farmer.id
+        }).sort({ createdAt: -1 }).lean();
+
+        const formattedItems = items.map(item => ({
+            ...item,
+            id: item._id
+        }));
+
+        res.render("my-marketplace-items", {
+            items: formattedItems
+        });
+
+    } catch (err) {
+        console.log("MONGO MY MARKETPLACE ERROR:", err);
+        res.render("error", {
+            message: "Error fetching your items.",
+            backLink: "/farmer/dashboard"
+        });
     }
-
-    const farmer_id = req.session.farmer.id;
-
-    const query = `
-        SELECT * FROM marketplace_items
-        WHERE farmer_id = ?
-        ORDER BY created_at DESC
-    `;
-
-    db.query(query, [farmer_id], (err, items) => {
-        if (err) {
-            console.log(err);
-            return res.render("error", {
-                message: "Error fetching your items.",
-                backLink: "/farmer/dashboard"
-            });
-        }
-
-        res.render("my-marketplace-items", { items });
-    });
 });
 
 app.get("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
@@ -1161,26 +1161,13 @@ app.get("/farmer/post-marketplace-item",checkSubscription, (req, res) => {
     res.render("post-marketplace-item");
 });
 
-app.get("/marketplace/item/:id", (req, res) => {
-    const itemId = req.params.id;
+app.get("/marketplace/item/:id", async (req, res) => {
+    try {
+        const item = await MarketplaceItem.findById(req.params.id)
+            .populate("farmer_id", "full_name")
+            .lean();
 
-    const query = `
-        SELECT marketplace_items.*, farmers.full_name
-        FROM marketplace_items
-        JOIN farmers ON marketplace_items.farmer_id = farmers.id
-        WHERE marketplace_items.id = ?
-    `;
-
-    db.query(query, [itemId], (err, results) => {
-        if (err) {
-            console.log("MARKETPLACE ITEM DETAILS ERROR:", err);
-            return res.render("error", {
-                message: "Error fetching item details.",
-                backLink: "/marketplace"
-            });
-        }
-
-        if (results.length === 0) {
+        if (!item) {
             return res.render("error", {
                 message: "Marketplace item not found.",
                 backLink: "/marketplace"
@@ -1188,9 +1175,20 @@ app.get("/marketplace/item/:id", (req, res) => {
         }
 
         res.render("marketplace-item-details", {
-            item: results[0]
+            item: {
+                ...item,
+                id: item._id,
+                full_name: item.farmer_id?.full_name || "Farmer"
+            }
         });
-    });
+
+    } catch (err) {
+        console.log("MONGO MARKETPLACE DETAILS ERROR:", err);
+        res.render("error", {
+            message: "Error fetching item details.",
+            backLink: "/marketplace"
+        });
+    }
 });
 
 app.post("/farmer/post-marketplace-item", checkSubscription, async (req, res) => {
@@ -1234,37 +1232,24 @@ app.post("/farmer/post-marketplace-item", checkSubscription, async (req, res) =>
     }
 });
 
-app.post("/farmer/delete-marketplace-item/:id", checkSubscription, (req, res) => {
-    if (req.subscriptionExpired) {
-    return res.render("message", {
-        title: "Subscription Expired",
-        message: "Renew subscription to post jobs.",
-        backLink: "/farmer/renew-subscription"
-    });
-}
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
+app.post("/farmer/delete-marketplace-item/:id", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) return res.redirect("/farmer/login");
 
-    const itemId = req.params.id;
-    const farmer_id = req.session.farmer.id;
-
-    const query = `
-        DELETE FROM marketplace_items
-        WHERE id = ? AND farmer_id = ?
-    `;
-
-    db.query(query, [itemId, farmer_id], (err) => {
-        if (err) {
-            console.log(err);
-            return res.render("error", {
-                message: "Error deleting item.",
-                backLink: "/farmer/my-marketplace-items"
-            });
-        }
+        await MarketplaceItem.deleteOne({
+            _id: req.params.id,
+            farmer_id: req.session.farmer.id
+        });
 
         res.redirect("/farmer/my-marketplace-items");
-    });
+
+    } catch (err) {
+        console.log("MONGO DELETE MARKETPLACE ERROR:", err);
+        res.render("error", {
+            message: "Error deleting item.",
+            backLink: "/farmer/my-marketplace-items"
+        });
+    }
 });
 
 app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
