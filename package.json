@@ -21,7 +21,6 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "mongoose": "^9.6.1",
-    "mysql2": "^3.22.0",
     "razorpay": "^2.9.6"
   },
   "devDependencies": {
