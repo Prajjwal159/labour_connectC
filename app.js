@@ -7,7 +7,6 @@ const axios = require("axios");
 require("dotenv").config();
 const connectMongoDB = require("./config/mongodb");
 connectMongoDB();
-const db = require("./config/db");
 const translations = require("./locales/translations");
 const os = require("os");
 const crypto = require("crypto");
@@ -1252,37 +1251,18 @@ app.post("/farmer/delete-marketplace-item/:id", checkSubscription, async (req, r
     }
 });
 
-app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
-    if (req.subscriptionExpired) {
-    return res.render("message", {
-        title: "Subscription Expired",
-        message: "Renew subscription to post jobs.",
-        backLink: "/farmer/renew-subscription"
-    });
-}
-
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const itemId = req.params.id;
-    const farmer_id = req.session.farmer.id;
-
-    const query = `
-        SELECT * FROM marketplace_items
-        WHERE id = ? AND farmer_id = ?
-    `;
-
-    db.query(query, [itemId, farmer_id], (err, results) => {
-        if (err) {
-            console.log("EDIT MARKETPLACE GET ERROR:", err);
-            return res.render("error", {
-                message: "Error fetching marketplace item.",
-                backLink: "/farmer/my-marketplace-items"
-            });
+app.get("/farmer/edit-marketplace-item/:id", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
         }
 
-        if (results.length === 0) {
+        const item = await MarketplaceItem.findOne({
+            _id: req.params.id,
+            farmer_id: req.session.farmer.id
+        }).lean();
+
+        if (!item) {
             return res.render("error", {
                 message: "Item not found or unauthorized access.",
                 backLink: "/farmer/my-marketplace-items"
@@ -1290,101 +1270,87 @@ app.get("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
         }
 
         res.render("edit-marketplace-item", {
-            item: results[0]
-        });
-    });
-});
-
-app.post("/farmer/edit-marketplace-item/:id", checkSubscription, (req, res) => {
-    if (req.subscriptionExpired) {
-    return res.render("message", {
-        title: "Subscription Expired",
-        message: "Renew subscription to post jobs.",
-        backLink: "/farmer/renew-subscription"
-    });
-}
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const itemId = req.params.id;
-    const farmer_id = req.session.farmer.id;
-
-    const {
-        item_title,
-        category,
-        item_type,
-        description,
-        price,
-        location,
-        contact_phone,
-        image_url
-    } = req.body;
-
-    const query = `
-        UPDATE marketplace_items
-        SET item_title = ?, category = ?, item_type = ?, description = ?, price = ?, location = ?, contact_phone = ?, image_url = ?
-        WHERE id = ? AND farmer_id = ?
-    `;
-
-    db.query(
-        query,
-        [
-            item_title,
-            category,
-            item_type,
-            description,
-            price,
-            location,
-            contact_phone,
-            image_url,
-            itemId,
-            farmer_id
-        ],
-        (err, result) => {
-            if (err) {
-                console.log("EDIT MARKETPLACE POST ERROR:", err);
-                return res.render("error", {
-                    message: "Error updating marketplace item.",
-                    backLink: "/farmer/my-marketplace-items"
-                });
+            item: {
+                ...item,
+                id: item._id
             }
+        });
 
-            return res.render("message", {
-                title: "Item Updated",
-                message: "Marketplace item updated successfully.",
-                backLink: "/farmer/my-marketplace-items"
-            });
-        }
-    );
+    } catch (err) {
+        console.log("MONGO EDIT MARKETPLACE GET ERROR:", err);
+
+        res.render("error", {
+            message: "Error fetching marketplace item.",
+            backLink: "/farmer/my-marketplace-items"
+        });
+    }
 });
 
-app.post("/farmer/mark-marketplace-item/:id", checkSubscription, (req, res) => {
-    if (!req.session.farmer) {
-        return res.redirect("/farmer/login");
-    }
-
-    const itemId = req.params.id;
-    const farmer_id = req.session.farmer.id;
-    const { status } = req.body;
-
-    const query = `
-        UPDATE marketplace_items
-        SET status = ?
-        WHERE id = ? AND farmer_id = ?
-    `;
-
-    db.query(query, [status, itemId, farmer_id], (err) => {
-        if (err) {
-            console.log("MARK MARKETPLACE ITEM ERROR:", err);
-            return res.render("error", {
-                message: "Error updating item status.",
-                backLink: "/farmer/my-marketplace-items"
-            });
+app.post("/farmer/edit-marketplace-item/:id", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
         }
+
+        await MarketplaceItem.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                farmer_id: req.session.farmer.id
+            },
+            {
+                item_title: req.body.item_title,
+                category: req.body.category,
+                item_type: req.body.item_type,
+                description: req.body.description,
+                price: Number(req.body.price),
+                location: req.body.location,
+                contact_phone: req.body.contact_phone,
+                image_url: req.body.image_url
+            }
+        );
+
+        res.render("message", {
+            title: "Item Updated",
+            message: "Marketplace item updated successfully.",
+            backLink: "/farmer/my-marketplace-items"
+        });
+
+    } catch (err) {
+        console.log("MONGO EDIT MARKETPLACE POST ERROR:", err);
+
+        res.render("error", {
+            message: "Error updating marketplace item.",
+            backLink: "/farmer/my-marketplace-items"
+        });
+    }
+});
+
+app.post("/farmer/mark-marketplace-item/:id", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
+        }
+
+        await MarketplaceItem.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                farmer_id: req.session.farmer.id
+            },
+            {
+                status: req.body.status
+            }
+        );
 
         res.redirect("/farmer/my-marketplace-items");
-    });
+
+    } catch (err) {
+        console.log("MONGO MARKETPLACE STATUS ERROR:", err);
+
+        res.render("error", {
+            message: "Error updating item status.",
+            backLink: "/farmer/my-marketplace-items"
+        });
+    }
 });
 
 app.get("/farmer/renew-subscription", (req, res) => {
