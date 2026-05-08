@@ -1,0 +1,426 @@
+/* =========================================================
+   Labour Connect - Voice Assistant UI Styles
+   ========================================================= */
+
+/* ── Floating Orb Button ──────────────────────────────────── */
+.va-orb {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: white;
+  font-size: 26px;
+  cursor: pointer;
+  z-index: 99999;
+  box-shadow: 0 8px 32px rgba(22, 163, 74, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  overflow: visible;
+}
+
+.va-orb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 40px rgba(22, 163, 74, 0.65);
+}
+
+.va-orb.va-orb-active {
+  background: linear-gradient(135deg, #0f766e, #0d9488);
+  box-shadow: 0 8px 32px rgba(15, 118, 110, 0.55);
+}
+
+.va-orb.va-orb-listening {
+  animation: va-orb-pulse-anim 1.2s infinite;
+}
+
+@keyframes va-orb-pulse-anim {
+  0%, 100% { box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5); background: linear-gradient(135deg, #dc2626, #b91c1c); }
+  50%       { box-shadow: 0 8px 60px rgba(239, 68, 68, 0.8); background: linear-gradient(135deg, #ef4444, #dc2626); }
+}
+
+/* Pulse ring */
+.va-orb-pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.3);
+  animation: va-ring 2.5s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes va-ring {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* ── Panel ────────────────────────────────────────────────── */
+.va-panel {
+  position: fixed;
+  right: 28px;
+  bottom: 108px;
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 99998;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  animation: va-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+@keyframes va-slide-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Hidden utility ───────────────────────────────────────── */
+.va-hidden {
+  display: none !important;
+}
+
+/* ── Panel Header ─────────────────────────────────────────── */
+.va-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #15803d, #166534);
+  color: white;
+}
+
+.va-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.va-header-icon {
+  font-size: 24px;
+  background: rgba(255,255,255,0.15);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.va-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.va-subtitle {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+.va-close-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.va-close-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* ── Panel Body ───────────────────────────────────────────── */
+.va-panel-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Section Label ────────────────────────────────────────── */
+.va-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.va-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Language Select ──────────────────────────────────────── */
+.va-select {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 14px;
+  color: #111827;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: auto;
+}
+
+.va-select:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+/* ── Status Row ───────────────────────────────────────────── */
+.va-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.va-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.va-dot-idle     { background: #9ca3af; }
+.va-dot-listening{ background: #ef4444; animation: va-blink 0.8s step-start infinite; }
+.va-dot-speaking { background: #3b82f6; animation: va-blink 1s ease-in-out infinite; }
+.va-dot-error    { background: #f59e0b; }
+
+@keyframes va-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── Transcript Box ───────────────────────────────────────── */
+.va-transcript-box {
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+  min-height: 60px;
+}
+
+.va-transcript-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.va-transcript-text {
+  font-size: 14px;
+  color: #111827;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.va-transcript-text.va-interim {
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* ── Response Box ─────────────────────────────────────────── */
+.va-response-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 1.5px solid #86efac;
+  border-radius: 14px;
+  padding: 12px 14px;
+  animation: va-fade-in 0.3s ease;
+}
+
+.va-response-box.va-resp-error {
+  background: linear-gradient(135deg, #fff7ed, #fee2e2);
+  border-color: #fca5a5;
+}
+
+@keyframes va-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.va-resp-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.va-resp-text {
+  font-size: 13px;
+  color: #065f46;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.va-resp-error .va-resp-text {
+  color: #92400e;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.va-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.va-btn-primary,
+.va-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.va-btn-primary {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: white;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.va-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.45);
+}
+
+.va-btn-primary:disabled {
+  background: #d1fae5;
+  color: #6b7280;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.va-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1.5px solid #e5e7eb;
+}
+
+.va-btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.va-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.va-btn-icon {
+  font-size: 15px;
+}
+
+/* ── Help Section ─────────────────────────────────────────── */
+.va-help-link {
+  background: none;
+  border: none;
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  padding: 4px;
+  width: 100%;
+  transition: color 0.2s;
+}
+
+.va-help-link:hover { color: #15803d; }
+
+.va-help-list-container {
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.va-help-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.va-help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.va-help-chip {
+  font-size: 11.5px;
+  color: #374151;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.va-help-chip:hover {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .va-panel {
+    right: 12px;
+    bottom: 96px;
+    width: calc(100vw - 24px);
+  }
+  .va-orb {
+    right: 16px;
+    bottom: 16px;
+    width: 60px;
+    height: 60px;
+    font-size: 22px;
+  }
+}

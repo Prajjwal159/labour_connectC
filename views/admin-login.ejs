@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Labour Connect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/voice-assistant.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f8fafc;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 28px; font-weight: 700; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: #94a3b8; font-size: 14px; margin-top: 5px; }
+        .form-group { margin-bottom: 20px; position: relative; }
+        .form-group label { display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 8px; font-weight: 600; }
+        .form-group input {
+            width: 100%; padding: 12px 16px 12px 40px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; color: white;
+            font-size: 15px; transition: all 0.3s ease;
+        }
+        .form-group input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
+        .form-group i { position: absolute; top: 38px; left: 14px; color: #64748b; font-size: 16px; transition: color 0.3s ease; }
+        .form-group input:focus + i { color: #38bdf8; }
+        .btn-submit {
+            width: 100%; padding: 14px; margin-top: 10px;
+            background: linear-gradient(to right, #0ea5e9, #4f46e5);
+            border: none; border-radius: 12px; color: white;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.4);
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 15px 25px -5px rgba(14, 165, 233, 0.5); }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #94a3b8; text-decoration: none; font-size: 14px; transition: color 0.2s; }
+        .back-link:hover { color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="header">
+            <h1>Admin Portal</h1>
+            <p>Sign in to manage Labour Connect</p>
+        </div>
+        <form action="/admin/login" method="POST">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="admin@example.com" required>
+                <i class="fa-solid fa-envelope"></i>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="••••••••" required>
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <button type="submit" class="btn-submit">Sign In</button>
+        </form>
+        <a href="/" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+    </div>
+
+    <!-- Voice Assistant (shared) -->
+    <script src="/js/voice-assistant.js"></script>
+</body>
+</html>

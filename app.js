@@ -17,6 +17,7 @@ const Worker = require("./models/Worker");
 const Job = require("./models/Job");
 const JobApplication = require("./models/JobApplication");
 const MarketplaceItem = require("./models/MarketplaceItem");
+const Admin = require("./models/Admin");
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -1866,6 +1867,69 @@ app.post("/razorpay/verify", async (req, res) => {
     }
 });
 
+
+// Admin Routes
+app.get("/admin/login", (req, res) => {
+    res.render("admin-login");
+});
+
+app.post("/admin/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        // Setup default admin if none exists
+        const adminCount = await Admin.countDocuments();
+        if (adminCount === 0) {
+            const hashedPwd = await bcrypt.hash("admin123", 10);
+            await Admin.create({ email: "admin@example.com", password: hashedPwd });
+        }
+
+        const admin = await Admin.findOne({ email });
+        if (!admin) {
+            return res.render("error", { message: "Admin not found. Use admin@example.com if this is the first login.", backLink: "/admin/login" });
+        }
+
+        const isMatch = await bcrypt.compare(password, admin.password);
+        if (!isMatch) {
+            return res.render("error", { message: "Invalid password. Default is admin123.", backLink: "/admin/login" });
+        }
+
+        req.session.admin = { id: admin._id.toString(), email: admin.email };
+        res.redirect("/admin/dashboard");
+    } catch (err) {
+        console.log("ADMIN LOGIN ERROR:", err);
+        res.render("error", { message: "Server error.", backLink: "/admin/login" });
+    }
+});
+
+app.get("/admin/dashboard", async (req, res) => {
+    try {
+        if (!req.session.admin) return res.redirect("/admin/login");
+
+        const farmerCount = await Farmer.countDocuments();
+        const workerCount = await Worker.countDocuments();
+        const jobCount = await Job.countDocuments();
+        const appCount = await JobApplication.countDocuments();
+        const marketCount = await MarketplaceItem.countDocuments();
+
+        const recentFarmers = await Farmer.find().sort({createdAt: -1}).limit(5).lean();
+        const recentWorkers = await Worker.find().sort({createdAt: -1}).limit(5).lean();
+        const recentJobs = await Job.find().sort({createdAt: -1}).limit(5).lean();
+
+        res.render("admin-dashboard", {
+            admin: req.session.admin,
+            farmerCount, workerCount, jobCount, appCount, marketCount,
+            recentFarmers, recentWorkers, recentJobs
+        });
+    } catch (err) {
+        res.render("error", { message: "Error loading admin dashboard.", backLink: "/admin/login" });
+    }
+});
+
+app.get("/admin/logout", (req, res) => {
+    delete req.session.admin;
+    res.redirect("/admin/login");
+});
 
 // Start server on all networks (important)
 app.listen(PORT, "0.0.0.0", () => {

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Labour Connect</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/voice-assistant.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --border: rgba(255, 255, 255, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px; transition: transform 0.3s ease; z-index: 10; }
+        .sidebar-header { margin-bottom: 40px; display: flex; align-items: center; gap: 12px; }
+        .sidebar-header .icon { width: 40px; height: 40px; border-radius: 10px; background: var(--gradient); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
+        .sidebar-header h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+        .nav-links { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .nav-links li a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; text-decoration: none; color: var(--text-muted); border-radius: 10px; transition: all 0.2s ease; font-weight: 500; }
+        .nav-links li a:hover, .nav-links li a.active { background: rgba(56, 189, 248, 0.1); color: var(--primary); }
+        .nav-links li a i { font-size: 18px; width: 24px; text-align: center; }
+        .sidebar-footer { margin-top: auto; }
+        .logout-btn { display: flex; align-items: center; gap: 12px; padding: 12px 16px; text-decoration: none; color: #ef4444; border-radius: 10px; transition: all 0.2s; font-weight: 500; }
+        .logout-btn:hover { background: rgba(239, 68, 68, 0.1); }
+        
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+        .topbar { height: 80px; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 5; }
+        .topbar .title h1 { font-size: 24px; font-weight: 600; }
+        .topbar .user-info { display: flex; align-items: center; gap: 12px; }
+        .topbar .user-info .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        
+        /* Dashboard Container */
+        .dashboard-container { padding: 40px; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; display: flex; align-items: center; gap: 20px; transition: transform 0.3s, box-shadow 0.3s; animation: fadeIn 0.5s ease backwards; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.15); }
+        .stat-icon { width: 60px; height: 60px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .stat-icon.farmers { background: rgba(56, 189, 248, 0.1); color: #38bdf8; }
+        .stat-icon.workers { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .stat-icon.jobs { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .stat-icon.market { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .stat-icon.apps { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+        .stat-info h3 { font-size: 14px; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; }
+        .stat-info .value { font-size: 28px; font-weight: 700; color: white; }
+        
+        /* Data Tables */
+        .tables-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; }
+        .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; overflow: hidden; animation: fadeIn 0.6s ease backwards 0.2s; }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .table-header h3 { font-size: 18px; font-weight: 600; }
+        .table-header .btn-view { color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 500; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        .data-table th { font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; font-weight: 600; }
+        .data-table td { font-size: 14px; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge.open { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .badge.closed { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); position: fixed; height: 100%; }
+            .topbar { padding: 0 20px; }
+            .dashboard-container { padding: 20px; }
+            .tables-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="icon"><i class="fa-solid fa-leaf"></i></div>
+            <h2>Admin<span style="color:var(--primary)">Portal</span></h2>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/admin/dashboard" class="active"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="#"><i class="fa-solid fa-users"></i> Users</a></li>
+            <li><a href="#"><i class="fa-solid fa-briefcase"></i> Jobs</a></li>
+            <li><a href="#"><i class="fa-solid fa-store"></i> Marketplace</a></li>
+            <li><a href="#"><i class="fa-solid fa-gear"></i> Settings</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <a href="/admin/logout" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="title">
+                <h1>Overview</h1>
+            </div>
+            <div class="user-info">
+                <div style="text-align: right;">
+                    <div style="font-weight: 600; font-size: 14px;"><%= admin.email %></div>
+                    <div style="font-size: 12px; color: var(--text-muted)">Super Admin</div>
+                </div>
+                <div class="avatar">A</div>
+            </div>
+        </header>
+
+        <!-- Dashboard Container -->
+        <div class="dashboard-container">
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card" style="animation-delay: 0.1s;">
+                    <div class="stat-icon farmers"><i class="fa-solid fa-tractor"></i></div>
+                    <div class="stat-info">
+                        <h3>Total Farmers</h3>
+                        <div class="value"><%= farmerCount %></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="animation-delay: 0.2s;">
+                    <div class="stat-icon workers"><i class="fa-solid fa-helmet-safety"></i></div>
+                    <div class="stat-info">
+                        <h3>Total Workers</h3>
+                        <div class="value"><%= workerCount %></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="animation-delay: 0.3s;">
+                    <div class="stat-icon jobs"><i class="fa-solid fa-briefcase"></i></div>
+                    <div class="stat-info">
+                        <h3>Total Jobs</h3>
+                        <div class="value"><%= jobCount %></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="animation-delay: 0.4s;">
+                    <div class="stat-icon market"><i class="fa-solid fa-store"></i></div>
+                    <div class="stat-info">
+                        <h3>Marketplace Items</h3>
+                        <div class="value"><%= marketCount %></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="animation-delay: 0.5s;">
+                    <div class="stat-icon apps"><i class="fa-solid fa-file-contract"></i></div>
+                    <div class="stat-info">
+                        <h3>Job Applications</h3>
+                        <div class="value"><%= appCount %></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tables Grid -->
+            <div class="tables-grid">
+                <!-- Recent Jobs -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>Recent Jobs</h3>
+                        <a href="#" class="btn-view">View All</a>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(recentJobs.length > 0) { %>
+                                <% recentJobs.forEach(job => { %>
+                                    <tr>
+                                        <td><%= job.job_title %></td>
+                                        <td><%= job.category %></td>
+                                        <td><span class="badge <%= job.status.toLowerCase() === 'open' ? 'open' : 'closed' %>"><%= job.status %></span></td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted)">No jobs found</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Recent Farmers -->
+                <div class="table-card" style="animation-delay: 0.3s;">
+                    <div class="table-header">
+                        <h3>Recent Farmers</h3>
+                        <a href="#" class="btn-view">View All</a>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Village</th>
+                                <th>Plan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(recentFarmers.length > 0) { %>
+                                <% recentFarmers.forEach(farmer => { %>
+                                    <tr>
+                                        <td><%= farmer.full_name %></td>
+                                        <td><%= farmer.village %></td>
+                                        <td><%= farmer.subscription_plan ? farmer.subscription_plan.split(' ')[0] : 'None' %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted)">No farmers found</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Recent Workers -->
+                <div class="table-card" style="animation-delay: 0.4s;">
+                    <div class="table-header">
+                        <h3>Recent Workers</h3>
+                        <a href="#" class="btn-view">View All</a>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Village</th>
+                                <th>Exp. Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(recentWorkers.length > 0) { %>
+                                <% recentWorkers.forEach(worker => { %>
+                                    <tr>
+                                        <td><%= worker.full_name %></td>
+                                        <td><%= worker.village %></td>
+                                        <td><%= worker.experience_level %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr><td colspan="3" style="text-align: center; color: var(--text-muted)">No workers found</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Voice Assistant (shared) -->
+    <script src="/js/voice-assistant.js"></script>
+</body>
+</html>

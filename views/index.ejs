@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="<%= currentLang %>">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= t('app_name') %></title>
+    <title>
+        <%= t('app_name') %>
+    </title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/voice-assistant.css">
 </head>
+
 <body class="landing-body">
 
     <section class="hero-wrapper">
@@ -17,19 +22,33 @@
                 <a class="navbar-brand brand-logo" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
 
                 <div class="nav-pill d-none d-lg-flex">
-                    <a href="/?lang=<%= currentLang %>" class="active"><%= t('home') %></a>
-                    <a href="#about"><%= t('about_us') %></a>
-                    <a href="#solutions"><%= t('solutions') %></a>
-                    <a href="#impact"><%= t('impact') %></a>
-                    <a href="#access"><%= t('access') %></a>
+                    <a href="/?lang=<%= currentLang %>" class="active">
+                        <%= t('home') %>
+                    </a>
+                    <a href="#about">
+                        <%= t('about_us') %>
+                    </a>
+                    <a href="#solutions">
+                        <%= t('solutions') %>
+                    </a>
+                    <a href="#impact">
+                        <%= t('impact') %>
+                    </a>
+                    <a href="#access">
+                        <%= t('access') %>
+                    </a>
                 </div>
 
                 <div class="d-flex gap-2">
                     <a href="?lang=en" class="btn btn-sm btn-light">English</a>
                     <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
-                    <a href="/farmer/login?lang=<%= currentLang %>" class="btn nav-contact-btn"><%= t('login') %></a>
+                    <a href="/farmer/login?lang=<%= currentLang %>" class="btn nav-contact-btn">
+                        <%= t('login') %>
+                    </a>
                     <a href="/marketplace?lang=<%= currentLang %>" class="btn nav-contact-btn">Marketplace</a>
                     <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn glass-btn">Krishi Yojanas</a>
+                    <a href="/admin/login" class="btn glass-btn"
+                        style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">Admin</a>
                 </div>
             </div>
         </nav>
@@ -38,18 +57,26 @@
             <div class="row align-items-center min-vh-100">
                 <div class="col-lg-7">
                     <div class="hero-text-box">
-                        <p class="hero-mini-tag"><%= t('hero_tagline') %></p>
+                        <p class="hero-mini-tag">
+                            <%= t('hero_tagline') %>
+                        </p>
                         <h1 class="hero-title">
                             <%= t('hero_title_line1') %>
-                            <span><%= t('hero_title_line2') %></span>
+                                <span>
+                                    <%= t('hero_title_line2') %>
+                                </span>
                         </h1>
                         <p class="hero-subtitle">
                             <%= t('hero_subtitle') %>
                         </p>
 
                         <div class="hero-buttons mt-4">
-                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn btn-hero-primary"><%= t('start_as_farmer') %> ↗</a>
-                            <a href="/worker/register?lang=<%= currentLang %>" class="btn btn-hero-secondary"><%= t('join_as_worker') %></a>
+                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn btn-hero-primary">
+                                <%= t('start_as_farmer') %> ↗
+                            </a>
+                            <a href="/worker/register?lang=<%= currentLang %>" class="btn btn-hero-secondary">
+                                <%= t('join_as_worker') %>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -59,22 +86,34 @@
                         <div class="hero-stat-row">
                             <div>
                                 <h5>140M+</h5>
-                                <p><%= t('farmers_in_india') %></p>
+                                <p>
+                                    <%= t('farmers_in_india') %>
+                                </p>
                             </div>
                             <div>
-                                <h5>5 <%= t('types_short') %></h5>
-                                <p><%= t('flexible_hiring_modes') %></p>
+                                <h5>5 <%= t('types_short') %>
+                                </h5>
+                                <p>
+                                    <%= t('flexible_hiring_modes') %>
+                                </p>
                             </div>
                         </div>
 
                         <div class="hero-stat-row">
                             <div>
-                                <h5>2 <%= t('roles_short') %></h5>
-                                <p><%= t('farmers_workers') %></p>
+                                <h5>2 <%= t('roles_short') %>
+                                </h5>
+                                <p>
+                                    <%= t('farmers_workers') %>
+                                </p>
                             </div>
                             <div>
-                                <h5><%= t('rural_first') %></h5>
-                                <p><%= t('built_for_accessibility') %></p>
+                                <h5>
+                                    <%= t('rural_first') %>
+                                </h5>
+                                <p>
+                                    <%= t('built_for_accessibility') %>
+                                </p>
                             </div>
                         </div>
 
@@ -91,15 +130,27 @@
         <div class="container">
             <div class="row align-items-center text-center gy-3">
                 <div class="col-lg-3 text-lg-start">
-                    <p class="trusted-text mb-0"><%= t('trusted_strip_text') %></p>
+                    <p class="trusted-text mb-0">
+                        <%= t('trusted_strip_text') %>
+                    </p>
                 </div>
                 <div class="col-lg-9">
                     <div class="brand-strip">
-                        <span><%= t('farm_hiring') %></span>
-                        <span><%= t('rural_jobs') %></span>
-                        <span><%= t('seasonal_work') %></span>
-                        <span><%= t('digital_access') %></span>
-                        <span><%= t('agri_workforce') %></span>
+                        <span>
+                            <%= t('farm_hiring') %>
+                        </span>
+                        <span>
+                            <%= t('rural_jobs') %>
+                        </span>
+                        <span>
+                            <%= t('seasonal_work') %>
+                        </span>
+                        <span>
+                            <%= t('digital_access') %>
+                        </span>
+                        <span>
+                            <%= t('agri_workforce') %>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -108,7 +159,9 @@
 
     <section class="section-space bg-white" id="about">
         <div class="container">
-            <div class="section-label"><%= t('cultivating_opportunity') %></div>
+            <div class="section-label">
+                <%= t('cultivating_opportunity') %>
+            </div>
             <div class="row align-items-center gy-5">
                 <div class="col-lg-8">
                     <h2 class="big-section-heading">
@@ -117,7 +170,8 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="image-bubble-card">
-                        <img src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=80" alt="Farming">
+                        <img src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=80"
+                            alt="Farming">
                     </div>
                 </div>
             </div>
@@ -128,16 +182,22 @@
         <div class="container">
             <div class="row gy-4 align-items-start">
                 <div class="col-lg-6">
-                    <div class="section-label"><%= t('about_app') %></div>
+                    <div class="section-label">
+                        <%= t('about_app') %>
+                    </div>
                     <h2 class="solution-title">
                         <%= t('solutions_title_1') %>
-                        <span><%= t('solutions_title_2') %></span>
+                            <span>
+                                <%= t('solutions_title_2') %>
+                            </span>
                     </h2>
 
                     <div class="solution-feature active-feature">
                         <div class="feature-top">
                             <span>🌱</span>
-                            <strong><%= t('structured_hiring') %></strong>
+                            <strong>
+                                <%= t('structured_hiring') %>
+                            </strong>
                             <span>—</span>
                         </div>
                         <p>
@@ -148,7 +208,9 @@
                     <div class="solution-feature">
                         <div class="feature-top">
                             <span>👨‍🌾</span>
-                            <strong><%= t('worker_opportunity_access') %></strong>
+                            <strong>
+                                <%= t('worker_opportunity_access') %>
+                            </strong>
                             <span>+</span>
                         </div>
                     </div>
@@ -156,7 +218,9 @@
                     <div class="solution-feature">
                         <div class="feature-top">
                             <span>🌐</span>
-                            <strong><%= t('multilingual_rural_design') %></strong>
+                            <strong>
+                                <%= t('multilingual_rural_design') %>
+                            </strong>
                             <span>+</span>
                         </div>
                     </div>
@@ -168,7 +232,8 @@
                     </p>
 
                     <div class="solution-image-card">
-                        <img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1200&q=80" alt="Farmer working in field">
+                        <img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1200&q=80"
+                            alt="Farmer working in field">
                     </div>
                 </div>
             </div>
@@ -177,29 +242,43 @@
 
     <section class="section-space bg-white" id="impact">
         <div class="container">
-            <div class="section-label"><%= t('platform_impact') %></div>
+            <div class="section-label">
+                <%= t('platform_impact') %>
+            </div>
             <div class="row g-4">
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">⏱️</div>
-                        <h4><%= t('faster_hiring') %></h4>
-                        <p><%= t('faster_hiring_text') %></p>
+                        <h4>
+                            <%= t('faster_hiring') %>
+                        </h4>
+                        <p>
+                            <%= t('faster_hiring_text') %>
+                        </p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">💼</div>
-                        <h4><%= t('job_stability') %></h4>
-                        <p><%= t('job_stability_text') %></p>
+                        <h4>
+                            <%= t('job_stability') %>
+                        </h4>
+                        <p>
+                            <%= t('job_stability_text') %>
+                        </p>
                     </div>
                 </div>
 
                 <div class="col-md-4">
                     <div class="impact-card">
                         <div class="impact-icon">📱</div>
-                        <h4><%= t('digital_inclusion') %></h4>
-                        <p><%= t('digital_inclusion_text') %></p>
+                        <h4>
+                            <%= t('digital_inclusion') %>
+                        </h4>
+                        <p>
+                            <%= t('digital_inclusion_text') %>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -210,7 +289,9 @@
         <div class="container">
             <div class="row align-items-center gy-4">
                 <div class="col-lg-6">
-                    <h2 class="access-title"><%= t('get_started_title') %></h2>
+                    <h2 class="access-title">
+                        <%= t('get_started_title') %>
+                    </h2>
                     <p class="access-text">
                         <%= t('get_started_text') %>
                     </p>
@@ -218,272 +299,29 @@
                 <div class="col-lg-6">
                     <div class="access-card">
                         <div class="access-btn-grid">
-                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn access-main-btn"><%= t('farmer_register') %></a>
-                            <a href="/farmer/login?lang=<%= currentLang %>" class="btn access-outline-btn"><%= t('farmer_login') %></a>
-                            <a href="/worker/register?lang=<%= currentLang %>" class="btn access-main-btn blue-btn"><%= t('worker_register') %></a>
-                            <a href="/worker/login?lang=<%= currentLang %>" class="btn access-outline-btn blue-outline"><%= t('worker_login') %></a>
+                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn access-main-btn">
+                                <%= t('farmer_register') %>
+                            </a>
+                            <a href="/farmer/login?lang=<%= currentLang %>" class="btn access-outline-btn">
+                                <%= t('farmer_login') %>
+                            </a>
+                            <a href="/worker/register?lang=<%= currentLang %>" class="btn access-main-btn blue-btn">
+                                <%= t('worker_register') %>
+                            </a>
+                            <a href="/worker/login?lang=<%= currentLang %>" class="btn access-outline-btn blue-outline">
+                                <%= t('worker_login') %>
+                            </a>
+                            <a href="/admin/login" class="btn access-outline-btn"
+                                style="grid-column: span 2; border-color: rgba(56, 189, 248, 0.5); color: #0284c7;">Admin
+                                Portal Access</a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
-    <!-- Voice Assistant Floating Button -->
-<button id="voiceAssistantToggle" class="voice-assistant-btn" type="button">
-    🎤
-</button>
-
-<!-- Voice Assistant Panel -->
-<div id="voiceAssistantPanel" class="voice-assistant-panel d-none">
-    <div class="voice-header">
-        <h5 class="mb-0">Voice Assistant</h5>
-        <button id="voiceAssistantClose" type="button" class="btn btn-sm btn-light">✕</button>
-    </div>
-
-    <div class="voice-body">
-        <label class="form-label mt-2">Language</label>
-        <select id="voiceLanguage" class="form-select mb-3">
-            <option value="en-IN">English</option>
-            <option value="hi-IN">Hindi</option>
-            <option value="kn-IN">Kannada</option>
-        </select>
-
-        <div class="voice-status-box mb-3">
-            <strong>Status:</strong>
-            <span id="voiceStatus">Idle</span>
-        </div>
-
-        <div class="voice-transcript-box mb-3">
-            <strong>You said:</strong>
-            <div id="voiceTranscript">Nothing yet</div>
-        </div>
-
-        <div class="d-grid gap-2">
-            <button id="startVoiceBtn" type="button" class="btn btn-success">Start Listening</button>
-            <button id="stopVoiceBtn" type="button" class="btn btn-outline-secondary">Stop</button>
-        </div>
-    </div>
-</div>
-
-<style>
-.voice-assistant-btn {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 64px;
-    height: 64px;
-    border: none;
-    border-radius: 50%;
-    background: #1f8f4e;
-    color: white;
-    font-size: 28px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-    z-index: 9999;
-}
-
-.voice-assistant-panel {
-    position: fixed;
-    right: 24px;
-    bottom: 100px;
-    width: 340px;
-    max-width: calc(100vw - 32px);
-    background: white;
-    border-radius: 20px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
-    z-index: 9999;
-    overflow: hidden;
-}
-
-.voice-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: #1f8f4e;
-    color: white;
-}
-
-.voice-body {
-    padding: 16px;
-}
-
-.voice-status-box,
-.voice-transcript-box {
-    background: #f6f8f7;
-    border-radius: 12px;
-    padding: 12px;
-}
-
-.d-none {
-    display: none !important;
-}
-</style>
-<script>
-const toggleBtn = document.getElementById("voiceAssistantToggle");
-const panel = document.getElementById("voiceAssistantPanel");
-const closeBtn = document.getElementById("voiceAssistantClose");
-
-const startBtn = document.getElementById("startVoiceBtn");
-const stopBtn = document.getElementById("stopVoiceBtn");
-
-const statusText = document.getElementById("voiceStatus");
-const transcriptText = document.getElementById("voiceTranscript");
-const languageSelect = document.getElementById("voiceLanguage");
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const synth = window.speechSynthesis;
-
-let recognition = null;
-let isListening = false;
-
-function speakNow(text) {
-    if (!("speechSynthesis" in window)) {
-        statusText.textContent = "Speech output not supported";
-        return;
-    }
-
-    synth.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languageSelect.value;
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-        console.log("Speech started");
-        statusText.textContent = "Speaking";
-    };
-
-    utterance.onend = () => {
-        console.log("Speech ended");
-        statusText.textContent = "Finished speaking";
-    };
-
-    utterance.onerror = (e) => {
-        console.log("Speech error:", e);
-        statusText.textContent = "Speech error";
-    };
-
-    synth.speak(utterance);
-}
-
-toggleBtn.addEventListener("click", () => {
-    panel.classList.toggle("d-none");
-});
-
-closeBtn.addEventListener("click", () => {
-    panel.classList.add("d-none");
-});
-
-if (!SpeechRecognition) {
-    statusText.textContent = "Voice not supported in this browser. Use Chrome or Edge.";
-    startBtn.disabled = true;
-    stopBtn.disabled = true;
-} else {
-    recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.lang = languageSelect.value;
-
-    languageSelect.addEventListener("change", () => {
-        recognition.lang = languageSelect.value;
-        statusText.textContent = "Language changed";
-    });
-
-    startBtn.addEventListener("click", () => {
-        if (isListening) return;
-
-        recognition.lang = languageSelect.value;
-        transcriptText.textContent = "Listening...";
-        statusText.textContent = "Listening";
-        isListening = true;
-
-        try {
-            recognition.start();
-        } catch (err) {
-            console.log(err);
-            statusText.textContent = "Could not start microphone";
-            isListening = false;
-        }
-    });
-
-    stopBtn.addEventListener("click", () => {
-        if (recognition && isListening) {
-            recognition.stop();
-            statusText.textContent = "Stopped";
-            isListening = false;
-        }
-    });
-
-    recognition.onresult = (event) => {
-        let finalTranscript = "";
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-                finalTranscript += event.results[i][0].transcript;
-            }
-        }
-
-        finalTranscript = finalTranscript.toLowerCase().trim();
-        transcriptText.textContent = finalTranscript || "Listening...";
-
-        if (!finalTranscript) return;
-
-        if (finalTranscript.includes("job")) {
-            speakNow("Opening jobs");
-            setTimeout(() => {
-                window.location.href = "/worker/jobs";
-            }, 3000);
-        }
-
-        else if (finalTranscript.includes("loan") || finalTranscript.includes("scheme")) {
-            speakNow("Opening loan schemes");
-            setTimeout(() => {
-                window.location.href = "/krishi-yojanas?search=loan";
-            }, 3000);
-        }
-
-        else if (finalTranscript.includes("market")) {
-            speakNow("Opening marketplace");
-            setTimeout(() => {
-                window.location.href = "/marketplace";
-            }, 3000);
-        }
-
-        else if (finalTranscript.includes("farmer login")) {
-            speakNow("Opening farmer login");
-            setTimeout(() => {
-                window.location.href = "/farmer/login";
-            }, 3000);
-        }
-
-        else if (finalTranscript.includes("dashboard")) {
-            speakNow("Opening dashboard");
-            setTimeout(() => {
-                window.location.href = "/farmer/dashboard";
-            }, 3000);
-        }
-
-        else {
-            speakNow("Sorry, I did not understand");
-        }
-    };
-
-    recognition.onerror = (event) => {
-        console.log("Speech recognition error:", event.error);
-        statusText.textContent = "Error: " + event.error;
-        isListening = false;
-    };
-
-    recognition.onend = () => {
-        isListening = false;
-        if (statusText.textContent === "Listening") {
-            statusText.textContent = "Finished listening";
-        }
-    };
-}
-</script>
+    <!-- Voice Assistant (shared) -->
+    <script src="/js/voice-assistant.js"></script>
 </body>
+
 </html>
