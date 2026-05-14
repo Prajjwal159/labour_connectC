@@ -11,4 +11,3 @@ const workerSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 module.exports = mongoose.model("Worker", workerSchema);
-bhkeddnjed
