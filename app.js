@@ -17,6 +17,8 @@ const Worker = require("./models/Worker");
 const Job = require("./models/Job");
 const JobApplication = require("./models/JobApplication");
 const MarketplaceItem = require("./models/MarketplaceItem");
+const Notification = require("./models/Notification");
+const sendNotification = require("./utils/sendNotification");
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -249,6 +251,73 @@ app.get("/worker/dashboard", (req, res) => {
     }
 
     res.render("worker-dashboard", { worker: req.session.worker });
+});
+app.get("/notifications", async (req, res) => {
+
+    try {
+
+        let userId;
+        let userType;
+
+        if (req.session.farmer) {
+            userId = req.session.farmer.id;
+            userType = "farmer";
+        }
+
+        else if (req.session.worker) {
+            userId = req.session.worker.id;
+            userType = "worker";
+        }
+
+        else {
+            return res.redirect("/");
+        }
+
+        const notifications = await Notification.find({
+            userId,
+            userType,
+            isRead: false
+        }).sort({ createdAt: -1 });
+
+        res.render("notifications", {
+            notifications
+        });
+
+    } catch (err) {
+
+        console.log("NOTIFICATION FETCH ERROR:", err);
+
+        res.render("error", {
+            message: "Error loading notifications.",
+            backLink: "/"
+        });
+    }
+});
+
+app.get("/notification/read/:id", async (req, res) => {
+
+    try {
+
+        const notification = await Notification.findById(
+            req.params.id
+        );
+
+        if (!notification) {
+            return res.redirect("/notifications");
+        }
+
+        notification.isRead = true;
+
+        await notification.save();
+
+        res.redirect(notification.link);
+
+    } catch (err) {
+
+        console.log("READ NOTIFICATION ERROR:", err);
+
+        res.redirect("/notifications");
+    }
 });
 
 app.get("/farmer/register", (req, res) => {
@@ -1818,7 +1887,7 @@ app.post("/razorpay/verify", async (req, res) => {
 
         if (sessionData.type === "job_post") {
     try {
-        await Job.create({
+        const createdJob = await Job.create({
             farmer_id: sessionData.farmerId,
             job_title: data.job_title,
             category: data.category,
@@ -1833,7 +1902,34 @@ app.post("/razorpay/verify", async (req, res) => {
             status: "Open",
             version: 1
         });
+        
+        const workers = await Worker.find();
+        const startDate = new Date(createdJob.start_date);
 
+        const endDate = new Date(createdJob.end_date);
+
+        const diffTime = endDate - startDate;
+
+        const totalDays = Math.ceil(
+            diffTime / (1000 * 60 * 60 * 24)
+        );
+
+        for (const worker of workers) {
+
+            if (
+                worker.skill_category.includes(createdJob.category)
+            ) {
+
+                await sendNotification(
+                    worker._id,
+                    "worker",
+                    "New Job Available",
+                    `🌾 New ${createdJob.job_title} job posted in ${createdJob.location} for ${totalDays} days with ₹${createdJob.wage} per day wage.`,
+                    "job",
+                    "/worker/jobs"
+                );
+            }
+        }
         delete paymentSessions[paymentSessionId];
 
         return res.render("message", {

@@ -26,6 +26,10 @@ const farmerSchema = new mongoose.Schema({
         type: String
     },
 
+    interests: [{
+        type: String
+    }],
+
     subscription_plan: {
         type: String
     },
