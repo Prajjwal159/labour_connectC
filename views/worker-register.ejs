@@ -129,5 +129,44 @@
     </div>
 </div>
 
+
+<script>
+    window.firebaseConfig = <%- JSON.stringify(firebaseConfig || {}) %>;
+</script>
+<script type="module">
+    import { auth } from '/js/firebaseClient.js';
+    import { createUserWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const form = document.querySelector('form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = form.email.value;
+        const password = form.password.value;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing...";
+            
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await sendEmailVerification(userCredential.user);
+            
+            const token = await userCredential.user.getIdToken();
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = 'firebaseToken';
+            tokenInput.value = token;
+            form.appendChild(tokenInput);
+            
+            // Allow form to submit normally to Razorpay flow
+            form.submit();
+        } catch(error) {
+            console.error(error);
+            alert("Registration failed: " + error.message);
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Register";
+        }
+    });
+</script>
 </body>
 </html>

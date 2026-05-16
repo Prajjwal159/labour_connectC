@@ -66,5 +66,51 @@
     </div>
 </div>
 
+
+<script>
+    window.firebaseConfig = <%- JSON.stringify(firebaseConfig || {}) %>;
+</script>
+<script type="module">
+    import { auth } from '/js/firebaseClient.js';
+    import { signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const form = document.querySelector('form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = form.email.value;
+        const password = form.password.value;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Loading...";
+            
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const token = await userCredential.user.getIdToken();
+            
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ token })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.error || "Login failed");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Login";
+            }
+        } catch(error) {
+            console.error(error);
+            alert("Firebase Login Error: " + error.message);
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Login";
+        }
+    });
+</script>
 </body>
 </html>

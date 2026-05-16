@@ -1,11 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const session = require("express-session");
+const MongoStore = require("connect-mongo").default;
+const admin = require("./config/firebaseAdmin");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
-require("dotenv").config();
-// const db = require("./config/db");
 const connectMongoDB = require("./config/mongodb");
 connectMongoDB();
 const translations = require("./locales/translations");
@@ -17,13 +18,15 @@ const Worker = require("./models/Worker");
 const Job = require("./models/Job");
 const JobApplication = require("./models/JobApplication");
 const MarketplaceItem = require("./models/MarketplaceItem");
-
+const { loginLimiter, registerLimiter, forgotPasswordLimiter } = require("./middlewares/rateLimiters");
+const { validateEmail, validatePassword, sanitizeInput } = require("./utils/validators");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("./services/emailService");
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-const paymentSessions = {};
+const PaymentSession = require("./models/PaymentSession");
 
 function createRazorpayOrder(amount, receipt) {
     return razorpay.orders.create({
@@ -109,6 +112,7 @@ function getSubscriptionWarning(subscriptionEndDate) {
 
 const app = express();
 
+app.set("trust proxy", 1);
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -116,13 +120,31 @@ app.use(bodyParser.json());
 app.use(session({
     secret: process.env.SESSION_SECRET || "namma_raitha_secret",
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/hortix",
+        collectionName: 'sessions'
+    }),
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 app.use((req, res, next) => {
     const lang = req.query.lang === "kn" ? "kn" : "en";
 
     res.locals.currentLang = lang;
+    res.locals.firebaseConfig = {
+        apiKey: process.env.FIREBASE_API_KEY,
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.FIREBASE_APP_ID
+    };
     res.locals.t = (key) => {
         return translations[lang][key] || key;
     };
@@ -148,24 +170,25 @@ app.get("/farmer/login", (req, res) => {
 
 app.post("/farmer/login", async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { token } = req.body;
+        if (!token) return res.redirect("/farmer/login");
+        
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        if (!decodedToken.email_verified) {
+            return res.status(403).json({ error: "Please verify your email address before logging in." });
+        }
+        const firebaseUID = decodedToken.uid;
+        const email = decodedToken.email;
 
-        const farmer = await Farmer.findOne({ email });
+        let farmer = await Farmer.findOne({ $or: [{ firebaseUID }, { email }] });
 
         if (!farmer) {
-            return res.render("error", {
-                message: "Farmer account not found.",
-                backLink: "/farmer/login"
-            });
+            return res.status(404).json({ error: "Farmer account not found." });
         }
 
-        const isMatch = await bcrypt.compare(password, farmer.password);
-
-        if (!isMatch) {
-            return res.render("error", {
-                message: "Invalid password. Please try again.",
-                backLink: "/farmer/login"
-            });
+        if (!farmer.firebaseUID) {
+            farmer.firebaseUID = firebaseUID;
+            await farmer.save();
         }
 
         req.session.farmer = {
@@ -179,17 +202,15 @@ app.post("/farmer/login", async (req, res) => {
             subscription_months: farmer.subscription_months,
             subscription_status: farmer.subscription_status,
             subscription_start_date: farmer.subscription_start_date,
-            subscription_end_date: farmer.subscription_end_date
+            subscription_end_date: farmer.subscription_end_date,
+            firebaseUID: farmer.firebaseUID
         };
 
-        res.redirect("/farmer/dashboard");
+        res.status(200).json({ success: true, redirect: "/farmer/dashboard" });
 
     } catch (err) {
-        console.log("MONGO FARMER LOGIN ERROR:", err);
-        res.render("error", {
-            message: "Server error during farmer login.",
-            backLink: "/farmer/login"
-        });
+        console.log("FIREBASE FARMER LOGIN ERROR:", err);
+        res.status(500).json({ error: "Server error during farmer login." });
     }
 });
 
@@ -199,24 +220,25 @@ app.get("/worker/login", (req, res) => {
 
 app.post("/worker/login", async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { token } = req.body;
+        if (!token) return res.redirect("/worker/login");
+        
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        if (!decodedToken.email_verified) {
+            return res.status(403).json({ error: "Please verify your email address before logging in." });
+        }
+        const firebaseUID = decodedToken.uid;
+        const email = decodedToken.email;
 
-        const worker = await Worker.findOne({ email });
+        let worker = await Worker.findOne({ $or: [{ firebaseUID }, { email }] });
 
         if (!worker) {
-            return res.render("error", {
-                message: "Worker account not found.",
-                backLink: "/worker/login"
-            });
+            return res.status(404).json({ error: "Worker account not found." });
         }
 
-        const isMatch = await bcrypt.compare(password, worker.password);
-
-        if (!isMatch) {
-            return res.render("error", {
-                message: "Invalid password. Please try again.",
-                backLink: "/worker/login"
-            });
+        if (!worker.firebaseUID) {
+            worker.firebaseUID = firebaseUID;
+            await worker.save();
         }
 
         req.session.worker = {
@@ -228,18 +250,15 @@ app.post("/worker/login", async (req, res) => {
             skill_category: Array.isArray(worker.skill_category)
                 ? worker.skill_category.join(",")
                 : worker.skill_category,
-            experience_level: worker.experience_level
+            experience_level: worker.experience_level,
+            firebaseUID: worker.firebaseUID
         };
 
-        res.redirect("/worker/dashboard");
+        res.status(200).json({ success: true, redirect: "/worker/dashboard" });
 
     } catch (err) {
-        console.log("MONGO WORKER LOGIN ERROR:", err);
-
-        res.render("error", {
-            message: "Server error during worker login.",
-            backLink: "/worker/login"
-        });
+        console.log("FIREBASE WORKER LOGIN ERROR:", err);
+        res.status(500).json({ error: "Server error during worker login." });
     }
 });
 
@@ -294,16 +313,18 @@ app.post("/farmer/post-job", checkSubscription, async (req, res) => {
         const paymentSessionId = crypto.randomBytes(16).toString("hex");
         const order = await createRazorpayOrder(amount, `job_post_${Date.now()}`);
 
-        paymentSessions[paymentSessionId] = {
+        await PaymentSession.create({
+            paymentSessionId,
             type: "job_post",
+            role: "farmer",
             orderId: order.id,
             amount,
-            farmerId: req.session.farmer.id,
+            userId: req.session.farmer.id,
             data: {
                 ...req.body,
                 currentLang
             }
-        };
+        });
 
         res.render("razorpay-payment", {
             title: "Job Posting Payment",
@@ -340,27 +361,34 @@ app.post("/farmer/register", async (req, res) => {
             });
         }
 
+        const decodedToken = await admin.auth().verifyIdToken(req.body.firebaseToken);
+        const verifiedEmail = decodedToken.email;
+        const verifiedUID = decodedToken.uid;
+        req.body.email = verifiedEmail;
+
         const [amount, months] = subscription_plan.split("|");
 
         const paymentSessionId = crypto.randomBytes(16).toString("hex");
         const order = await createRazorpayOrder(amount, `farmer_reg_${Date.now()}`);
 
-        paymentSessions[paymentSessionId] = {
+        await PaymentSession.create({
+            paymentSessionId,
             type: "farmer_register",
+            role: "farmer",
             orderId: order.id,
             amount,
             data: {
                 full_name,
                 phone,
                 village,
-                email,
-                password,
+                email: verifiedEmail,
+                firebaseUID: verifiedUID,
                 subscription_amount: amount,
                 subscription_months: months,
                 subscription_plan_label: `₹${amount} - ${months} Months`,
                 currentLang
             }
-        };
+        });
 
         res.render("razorpay-payment", {
             title: "Farmer Subscription Payment",
@@ -454,7 +482,18 @@ app.get("/farmer/dashboard", checkSubscription, async (req, res) => {
     }
 });
 
-app.get("/logout", (req, res) => {
+app.get("/logout", async (req, res) => {
+    const firebaseUID = req.session?.farmer?.firebaseUID || req.session?.worker?.firebaseUID;
+    
+    if (firebaseUID) {
+        try {
+            const admin = require("./config/firebaseAdmin");
+            await admin.auth().revokeRefreshTokens(firebaseUID);
+        } catch (err) {
+            console.log("Error revoking Firebase tokens:", err);
+        }
+    }
+
     req.session.destroy((err) => {
         if (err) {
             return res.send("Error logging out.");
@@ -480,12 +519,19 @@ app.post("/worker/register", async (req, res) => {
             skill_category = skill_category.join(",");
         }
 
+        const decodedToken = await admin.auth().verifyIdToken(req.body.firebaseToken);
+        const verifiedEmail = decodedToken.email;
+        const verifiedUID = decodedToken.uid;
+        req.body.email = verifiedEmail;
+
         const amount = process.env.WORKER_REGISTRATION_FEE || 49;
         const paymentSessionId = crypto.randomBytes(16).toString("hex");
         const order = await createRazorpayOrder(amount, `worker_reg_${Date.now()}`);
 
-        paymentSessions[paymentSessionId] = {
+        await PaymentSession.create({
+            paymentSessionId,
             type: "worker_register",
+            role: "worker",
             orderId: order.id,
             amount,
             data: {
@@ -493,12 +539,12 @@ app.post("/worker/register", async (req, res) => {
                 phone,
                 village,
                 experience_level,
-                email,
-                password,
+                email: verifiedEmail,
+                firebaseUID: verifiedUID,
                 skill_category,
                 currentLang
             }
-        };
+        });
 
         res.render("razorpay-payment", {
             title: "Worker Registration Fee",
@@ -802,71 +848,16 @@ app.get("/farmer/forgot-password", (req, res) => {
 });
 
 app.post("/farmer/forgot-password", async (req, res) => {
-    try {
-        const { email, phone, newPassword } = req.body;
-
-        const farmer = await Farmer.findOne({ email, phone });
-
-        if (!farmer) {
-            return res.render("error", {
-                message: "Farmer account not found with given email and phone.",
-                backLink: "/farmer/forgot-password"
-            });
-        }
-
-        farmer.password = await bcrypt.hash(newPassword, 10);
-        await farmer.save();
-
-        return res.render("message", {
-            title: "Password Updated",
-            message: "Your farmer password has been updated successfully.",
-            backLink: "/farmer/login"
-        });
-
-    } catch (error) {
-        console.log("MONGO FARMER FORGOT PASSWORD ERROR:", error);
-
-        return res.render("error", {
-            message: "Server error.",
-            backLink: "/farmer/forgot-password"
-        });
-    }
+    // Handled by Firebase on frontend now
+    res.redirect("/farmer/login");
 });
 
 app.get("/worker/forgot-password", (req, res) => {
     res.render("worker-forgot-password");
 });
-
 app.post("/worker/forgot-password", async (req, res) => {
-    try {
-        const { email, phone, newPassword } = req.body;
-
-        const worker = await Worker.findOne({ email, phone });
-
-        if (!worker) {
-            return res.render("error", {
-                message: "Worker account not found with given email and phone.",
-                backLink: "/worker/forgot-password"
-            });
-        }
-
-        worker.password = await bcrypt.hash(newPassword, 10);
-        await worker.save();
-
-        return res.render("message", {
-            title: "Password Updated",
-            message: "Your worker password has been updated successfully.",
-            backLink: "/worker/login"
-        });
-
-    } catch (error) {
-        console.log("MONGO WORKER FORGOT PASSWORD ERROR:", error);
-
-        return res.render("error", {
-            message: "Server error.",
-            backLink: "/worker/forgot-password"
-        });
-    }
+    // Handled by Firebase on frontend now
+    res.redirect("/worker/login");
 });
 
 app.get("/farmer/edit-job/:jobId", checkSubscription, async (req, res) => {
@@ -1381,18 +1372,20 @@ app.post("/farmer/renew-subscription", async (req, res) => {
         const paymentSessionId = crypto.randomBytes(16).toString("hex");
         const order = await createRazorpayOrder(amount, `farmer_renew_${Date.now()}`);
 
-        paymentSessions[paymentSessionId] = {
-            type: "farmer_renewal",
+        await PaymentSession.create({
+            paymentSessionId,
+            type: "subscription_renewal",
+            role: "farmer",
             orderId: order.id,
             amount,
-            farmerId: req.session.farmer.id,
+            userId: req.session.farmer.id,
             data: {
                 subscription_amount: amount,
                 subscription_months: months,
                 subscription_plan_label: `₹${amount} - ${months} Months`,
                 currentLang
             }
-        };
+        });
 
         res.render("razorpay-payment", {
             title: "Renew Subscription",
@@ -1670,7 +1663,7 @@ app.post("/razorpay/verify", async (req, res) => {
             razorpay_signature
         } = req.body;
 
-        const sessionData = paymentSessions[paymentSessionId];
+        const sessionData = await PaymentSession.findOne({ paymentSessionId });
 
         if (!sessionData) {
             return res.render("error", {
@@ -1702,7 +1695,7 @@ app.post("/razorpay/verify", async (req, res) => {
         const data = sessionData.data;
 
         if (sessionData.type === "farmer_register") {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const firebaseUID = data.firebaseUID;
 
     const startDate = new Date();
     const endDate = new Date();
@@ -1714,7 +1707,7 @@ app.post("/razorpay/verify", async (req, res) => {
             phone: data.phone,
             village: data.village,
             email: data.email,
-            password: hashedPassword,
+            firebaseUID: firebaseUID,
             subscription_plan: data.subscription_plan_label,
             subscription_amount: Number(data.subscription_amount),
             subscription_months: Number(data.subscription_months),
@@ -1723,7 +1716,7 @@ app.post("/razorpay/verify", async (req, res) => {
             subscription_end_date: endDate
         });
 
-        delete paymentSessions[paymentSessionId];
+        await PaymentSession.findOneAndDelete({ paymentSessionId });
 
         return res.render("message", {
             title: "Payment Successful",
@@ -1733,6 +1726,11 @@ app.post("/razorpay/verify", async (req, res) => {
 
     } catch (err) {
         console.log("MONGO FARMER REGISTER ERROR:", err);
+        if (typeof firebaseUID !== "undefined" && firebaseUID) {
+            try {
+                await admin.auth().deleteUser(firebaseUID);
+            } catch(e) {}
+        }
 
         return res.render("error", {
             message: "Payment successful, but farmer account creation failed.",
@@ -1741,13 +1739,13 @@ app.post("/razorpay/verify", async (req, res) => {
     }
 }
 
-        if (sessionData.type === "farmer_renewal") {
+        if (sessionData.type === "subscription_renewal") {
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + parseInt(data.subscription_months));
 
     try {
-        await Farmer.findByIdAndUpdate(sessionData.farmerId, {
+        await Farmer.findByIdAndUpdate(sessionData.userId, {
             subscription_plan: data.subscription_plan_label,
             subscription_amount: Number(data.subscription_amount),
             subscription_months: Number(data.subscription_months),
@@ -1765,7 +1763,7 @@ app.post("/razorpay/verify", async (req, res) => {
             req.session.farmer.subscription_end_date = endDate;
         }
 
-        delete paymentSessions[paymentSessionId];
+        await PaymentSession.findOneAndDelete({ paymentSessionId });
 
         return res.render("message", {
             title: "Subscription Renewed",
@@ -1784,13 +1782,13 @@ app.post("/razorpay/verify", async (req, res) => {
 }
         if (sessionData.type === "worker_register") {
     try {
-        const hashedPassword = await bcrypt.hash(data.password, 10);
+        const firebaseUID = data.firebaseUID;
 
         await Worker.create({
             full_name: data.full_name,
             phone: data.phone,
             email: data.email,
-            password: hashedPassword,
+            firebaseUID: firebaseUID,
             skill_category: Array.isArray(data.skill_category)
                 ? data.skill_category
                 : data.skill_category.split(",").map(s => s.trim()),
@@ -1798,7 +1796,7 @@ app.post("/razorpay/verify", async (req, res) => {
             village: data.village
         });
 
-        delete paymentSessions[paymentSessionId];
+        await PaymentSession.findOneAndDelete({ paymentSessionId });
 
         return res.render("message", {
             title: "Worker Registered",
@@ -1808,6 +1806,11 @@ app.post("/razorpay/verify", async (req, res) => {
 
     } catch (err) {
         console.log("MONGO WORKER REGISTER ERROR:", err);
+        if (typeof firebaseUID !== "undefined" && firebaseUID) {
+            try {
+                await admin.auth().deleteUser(firebaseUID);
+            } catch(e) {}
+        }
 
         return res.render("error", {
             message: "Payment successful, but worker registration failed.",
@@ -1834,7 +1837,7 @@ app.post("/razorpay/verify", async (req, res) => {
             version: 1
         });
 
-        delete paymentSessions[paymentSessionId];
+        await PaymentSession.findOneAndDelete({ paymentSessionId });
 
         return res.render("message", {
             title: "Job Posted",

@@ -14,13 +14,31 @@ const farmerSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true,
+        trim: true
     },
 
     password: {
         type: String,
-        required: true
+        required: false
     },
+    
+    firebaseUID: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true
+    },
+
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationToken: String,
+    verificationExpires: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
 
     village: {
         type: String
