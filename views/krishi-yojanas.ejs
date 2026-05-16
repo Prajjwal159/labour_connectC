@@ -8,18 +8,19 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="page-shell">
-<div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1600&q=80');"></div>
-<div class="page-overlay" style="background:linear-gradient(180deg, rgba(17,58,28,0.58), rgba(240,247,238,0.95) 48%, rgba(245,248,242,1));"></div>
-
-<nav class="navbar glass-nav">
-    <div class="container">
-        <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">🌾 Namma Raitha Jobs</a>
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="/?lang=<%= currentLang %>" class="btn glass-btn">Home</a>
-            <a href="/farmer/dashboard?lang=<%= currentLang %>" class="btn glass-btn">Dashboard</a>
-        </div>
-    </div>
-</nav>
+<%
+    const jobsLink = typeof jobsPortalLink !== "undefined"
+        ? jobsPortalLink
+        : `/worker/jobs?lang=${currentLang}`;
+    const navLinks = [
+      { key: 'marketplace', href: `/marketplace?lang=${currentLang}`, label: 'Marketplace' },
+      { key: 'jobs', href: jobsLink, label: 'Jobs' },
+      { key: 'yojanas', href: `/krishi-yojanas?lang=${currentLang}`, label: 'Krishi Yojanas' }
+    ];
+%>
+<div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1600&q=80');"></div>
+<div class="page-overlay" style="background:linear-gradient(180deg, rgba(10,44,82,0.5), rgba(239,246,255,0.94) 50%, rgba(245,249,255,1));"></div>
+<%- include('partials/unified-navbar', { fixed: false, active: 'yojanas', links: navLinks }) %>
 
 <div class="container page-content">
     <div class="row align-items-center mb-4">
@@ -123,5 +124,39 @@
         <% } %>
     </div>
 </div>
+<footer class="platform-footer">
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <a class="footer-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+      <p class="footer-mini">Empowering sustainable agriculture through technology, jobs, and trusted marketplace access.</p>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Platform</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/marketplace?lang=<%= currentLang %>">Marketplace</a>
+        <a href="<%= jobsLink %>">Jobs</a>
+        <a href="/krishi-yojanas?lang=<%= currentLang %>">Krishi Yojanas</a>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Support</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/?lang=<%= currentLang %>">Home</a>
+        <a href="/farmer/login?lang=<%= currentLang %>">Login</a>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="footer-col-title">Legal</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">(c) 2024 Namma Raitha Digital Ecosystem.</div>
+</footer>
+
+<%- include('partials/micro-interactions') %>
 </body>
 </html>
+

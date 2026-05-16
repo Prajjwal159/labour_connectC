@@ -8,35 +8,34 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="page-shell">
-<div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80');"></div>
-<div class="page-overlay" style="background:linear-gradient(180deg, rgba(98,16,16,0.55), rgba(250,241,241,0.92) 55%, rgba(250,245,245,1));"></div>
+<div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1600&q=80');"></div>
+<div class="page-overlay" style="background:linear-gradient(180deg, rgba(98,16,16,0.45), rgba(239,236,255,0.95) 52%, rgba(250,245,255,1));"></div>
 
-<nav class="navbar glass-nav">
-    <div class="container">
-        <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
-        <div class="d-flex gap-2">
-            <a href="?lang=en" class="btn btn-sm btn-light">English</a>
-            <a href="?lang=kn" class="btn btn-sm btn-danger">ಕನ್ನಡ</a>
-            <a href="/?lang=<%= currentLang %>" class="btn glass-btn"><%= t('home') %></a>
-        </div>
-    </div>
-</nav>
+<%
+    const navLinks = [
+      { key: 'home',        href: `/?lang=${currentLang}`,               label: 'Home' },
+      { key: 'marketplace', href: `/marketplace?lang=${currentLang}`,    label: 'Marketplace' },
+      { key: 'jobs',        href: (typeof jobsPortalLink !== 'undefined' ? jobsPortalLink : `/worker/jobs?lang=${currentLang}`), label: 'Jobs' },
+      { key: 'yojanas',    href: `/krishi-yojanas?lang=${currentLang}`, label: 'Krishi Yojanas' }
+    ];
+%>
+<%- include('partials/unified-navbar', { fixed: false, active: '', links: navLinks }) %>
 
 <div class="container page-content">
     <div class="row justify-content-center align-items-center" style="min-height:75vh;">
-        <div class="col-lg-7">
-            <div class="frost-card p-5 text-center">
-                <div class="message-icon">❌</div>
-                <h1 class="premium-section-title text-danger"><%= t('something_went_wrong') %></h1>
-                <p class="premium-subtitle fs-5 mb-4"><%= message %></p>
-
+        <div class="col-lg-6 text-center">
+            <div class="frost-card p-5" style="border-radius:24px;">
+                <div style="font-size:3.5rem; margin-bottom:16px;">⚠️</div>
+                <h1 class="auth-v2-title mb-2" style="color:#8b1a1a;"><%= t('something_went_wrong') %></h1>
+                <p class="auth-v2-subtitle mb-4"><%= message %></p>
                 <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    <a href="<%= backLink %><%= backLink.includes('?') ? '&' : '?' %>lang=<%= currentLang %>" class="btn pretty-btn-red"><%= t('try_again') %></a>
-                    <a href="/?lang=<%= currentLang %>" class="btn pretty-btn-outline"><%= t('go_home') %></a>
+                    <a href="<%= backLink %><%= backLink.includes('?') ? '&' : '?' %>lang=<%= currentLang %>" class="btn auth-main-btn auth-v2-primary"><%= t('try_again') %></a>
+                    <a href="/?lang=<%= currentLang %>" class="btn auth-outline-btn auth-v2-secondary"><%= t('go_home') %></a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 </body>
 </html>

@@ -7,106 +7,153 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="page-shell">
+<body class="page-shell dashboard-v3 worker-dashboard-v3">
 <div class="page-bg" style="background-image:url('https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1600&q=80');"></div>
 <div class="page-overlay" style="background:linear-gradient(180deg, rgba(10,44,82,0.5), rgba(239,246,255,0.94) 50%, rgba(245,249,255,1));"></div>
+<%
+  const navLinks = [
+    { key: 'marketplace', href: `/marketplace?lang=${currentLang}`, label: 'Marketplace' },
+    { key: 'jobs', href: `/worker/jobs?lang=${currentLang}`, label: 'Jobs' },
+    { key: 'yojanas', href: `/krishi-yojanas?lang=${currentLang}`, label: 'Krishi Yojanas' }
+  ];
+%>
+<%- include('partials/unified-navbar', { fixed: false, active: 'dashboard', links: navLinks }) %>
 
-<nav class="navbar glass-nav">
-    <div class="container">
-        <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
-
-        <div class="d-flex gap-2 flex-wrap">
-            <a href="?lang=en" class="btn btn-sm btn-light">English</a>
-            <a href="?lang=kn" class="btn btn-sm btn-primary">ಕನ್ನಡ</a>
-            <a href="/worker/jobs?lang=<%= currentLang %>" class="btn glass-btn"><%= t('jobs') %></a>
-            <a href="/logout?lang=<%= currentLang %>" class="btn glass-btn-outline"><%= t('logout') %></a>
-        </div>
+<main class="container page-content dash-main-wrap">
+  <section class="dash-hero-card worker-hero">
+    <div class="dash-hero-copy">
+      <div class="dash-chip"><%= t('worker_opportunity_hub') %></div>
+      <h1><%= t('welcome') %>, <%= worker.full_name %></h1>
+      <p><%= t('worker_dashboard_text') %></p>
     </div>
-</nav>
+    <div class="dash-hero-actions">
+      <a href="/worker/jobs?lang=<%= currentLang %>" class="btn pretty-btn-green w-100"><%= t('view_available_jobs') %></a>
+      <a href="/worker/my-applications?lang=<%= currentLang %>" class="btn pretty-btn-outline w-100"><%= t('my_applications') %></a>
+      <div class="dash-micro-note">Keep your profile updated to improve matching quality.</div>
+    </div>
+  </section>
 
-<div class="container page-content">
-    <div class="row align-items-center mb-5">
-        <div class="col-lg-7">
-            <div class="page-hero-text">
-                <div class="tag-chip"><%= t('worker_opportunity_hub') %></div>
-                <h1 class="premium-section-title text-white"><%= t('welcome') %>, <%= worker.full_name %></h1>
-                <p><%= t('worker_dashboard_text') %></p>
-            </div>
+  <section class="dash-metric-grid worker-grid">
+    <article class="dash-metric-card">
+      <p class="label"><%= t('skill_category') %></p>
+      <div class="dash-skill-scroll">
+        <h3><%= worker.skill_category || 'N/A' %></h3>
+      </div>
+      <p class="hint"><%= t('skill_category_text') %></p>
+    </article>
+    <article class="dash-metric-card">
+      <p class="label"><%= t('experience_level') %></p>
+      <h3><%= worker.experience_level || 'N/A' %></h3>
+      <p class="hint"><%= t('experience_text') %></p>
+    </article>
+    <article class="dash-metric-card">
+      <p class="label"><%= t('village') %></p>
+      <h3><%= worker.village || 'N/A' %></h3>
+      <p class="hint"><%= t('worker_village_text') %></p>
+    </article>
+    <article class="dash-metric-card">
+      <p class="label">Profile Readiness</p>
+      <h3>
+        <%= [worker.full_name, worker.email, worker.phone, worker.village, worker.skill_category, worker.experience_level].filter(Boolean).length %>/6
+      </h3>
+      <p class="hint">Based on available profile details used for job matching.</p>
+    </article>
+  </section>
+
+  <section class="row g-4 align-items-start">
+    <div class="col-xl-8">
+      <div class="soft-card p-4 dash-panel mb-4">
+        <div class="dash-panel-head">
+          <h4 class="mb-0"><%= t('quick_actions') %></h4>
         </div>
-        <div class="col-lg-5">
-            <div class="visual-card" style="height:260px;">
-                <img src="https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?auto=format&fit=crop&w=1200&q=80" alt="Worker in field">
-            </div>
+        <p class="premium-subtitle mb-4"><%= t('quick_actions_text') %></p>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <article class="dash-action-card">
+              <h5><%= t('browse_jobs') %></h5>
+              <p><%= t('browse_jobs_text') %></p>
+              <a href="/worker/jobs?lang=<%= currentLang %>" class="btn pretty-btn-blue w-100"><%= t('view_available_jobs') %></a>
+            </article>
+          </div>
+          <div class="col-md-6">
+            <article class="dash-action-card">
+              <h5><%= t('my_applications') %></h5>
+              <p><%= t('my_applications_text') %></p>
+              <a href="/worker/my-applications?lang=<%= currentLang %>" class="btn pretty-btn-outline w-100"><%= t('my_applications') %></a>
+            </article>
+          </div>
         </div>
+      </div>
+
+      <div class="soft-card p-4 dash-panel">
+        <h4 class="mb-3">Career Snapshot</h4>
+        <div class="dash-check-grid">
+          <div class="dash-check-item <%= worker.full_name ? 'ok' : '' %>">Full Name Available</div>
+          <div class="dash-check-item <%= worker.email ? 'ok' : '' %>">Email Available</div>
+          <div class="dash-check-item <%= worker.phone ? 'ok' : '' %>">Phone Available</div>
+          <div class="dash-check-item <%= worker.village ? 'ok' : '' %>">Village Added</div>
+          <div class="dash-check-item <%= worker.skill_category ? 'ok' : '' %>">Skills Added</div>
+          <div class="dash-check-item <%= worker.experience_level ? 'ok' : '' %>">Experience Added</div>
+        </div>
+      </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="metric-card metric-blue">
-                <h5><%= t('skill_category') %></h5>
-                <h2 style="font-size:1.4rem;"><%= worker.skill_category || 'N/A' %></h2>
-                <p class="mb-0"><%= t('skill_category_text') %></p>
-            </div>
+    <div class="col-xl-4">
+      <div class="soft-card p-4 dash-panel mb-4">
+        <h4 class="mb-3"><%= t('worker_profile') %></h4>
+        <p class="job-detail-line"><strong><%= t('full_name') %>:</strong> <%= worker.full_name %></p>
+        <p class="job-detail-line"><strong><%= t('email') %>:</strong> <%= worker.email %></p>
+        <p class="job-detail-line"><strong><%= t('phone') %>:</strong> <%= worker.phone %></p>
+        <p class="job-detail-line"><strong><%= t('village') %>:</strong> <%= worker.village || 'N/A' %></p>
+        <p class="job-detail-line"><strong><%= t('skill') %>:</strong> <%= worker.skill_category || 'N/A' %></p>
+        <p class="job-detail-line mb-0"><strong><%= t('experience_level') %>:</strong> <%= worker.experience_level || 'N/A' %></p>
+      </div>
+
+      <div class="soft-card p-4 dash-panel">
+        <h4 class="mb-3">Work Focus</h4>
+        <p class="job-detail-line mb-3">Your current skill profile is used to improve job relevance.</p>
+        <div class="mt-2">
+          <span class="action-pill blue"><%= t('jobs') %></span>
+          <span class="action-pill"><%= t('applications') %></span>
+          <span class="action-pill gold"><%= t('rural_work') %></span>
         </div>
-        <div class="col-md-4">
-            <div class="metric-card metric-green">
-                <h5><%= t('experience_level') %></h5>
-                <h2><%= worker.experience_level || 'N/A' %></h2>
-                <p class="mb-0"><%= t('experience_text') %></p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="metric-card metric-gold">
-                <h5><%= t('village') %></h5>
-                <h2><%= worker.village || 'N/A' %></h2>
-                <p class="mb-0"><%= t('worker_village_text') %></p>
-            </div>
-        </div>
+      </div>
     </div>
+  </section>
+</main>
 
-    <div class="row g-4">
-        <div class="col-lg-4">
-            <div class="soft-card p-4 full-height-card">
-                <h4 class="mb-3"><%= t('worker_profile') %></h4>
-                <p class="job-detail-line"><strong><%= t('full_name') %>:</strong> <%= worker.full_name %></p>
-                <p class="job-detail-line"><strong><%= t('email') %>:</strong> <%= worker.email %></p>
-                <p class="job-detail-line"><strong><%= t('phone') %>:</strong> <%= worker.phone %></p>
-                <p class="job-detail-line"><strong><%= t('village') %>:</strong> <%= worker.village || 'N/A' %></p>
-                <p class="job-detail-line"><strong><%= t('skill') %>:</strong> <%= worker.skill_category || 'N/A' %></p>
-                <p class="job-detail-line"><strong><%= t('experience_level') %>:</strong> <%= worker.experience_level || 'N/A' %></p>
-            </div>
-        </div>
-
-        <div class="col-lg-8">
-            <div class="soft-card p-4 full-height-card">
-                <h4 class="mb-3"><%= t('quick_actions') %></h4>
-                <p class="premium-subtitle mb-4"><%= t('quick_actions_text') %></p>
-
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="soft-card p-4 text-center full-height-card">
-                            <h5><%= t('browse_jobs') %></h5>
-                            <p class="premium-subtitle"><%= t('browse_jobs_text') %></p>
-                            <a href="/worker/jobs?lang=<%= currentLang %>" class="btn pretty-btn-blue w-100"><%= t('view_available_jobs') %></a>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="soft-card p-4 text-center full-height-card">
-                            <h5><%= t('my_applications') %></h5>
-                            <p class="premium-subtitle"><%= t('my_applications_text') %></p>
-                            <a href="/worker/my-applications?lang=<%= currentLang %>" class="btn pretty-btn-outline w-100"><%= t('my_applications') %></a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <span class="action-pill blue"><%= t('jobs') %></span>
-                    <span class="action-pill"><%= t('applications') %></span>
-                    <span class="action-pill gold"><%= t('rural_work') %></span>
-                </div>
-            </div>
-        </div>
+<footer class="platform-footer">
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <a class="footer-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+      <p class="footer-mini">Empowering sustainable agriculture through technology, jobs, and trusted marketplace access.</p>
     </div>
-</div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Platform</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/marketplace?lang=<%= currentLang %>">Marketplace</a>
+        <a href="/worker/jobs?lang=<%= currentLang %>">Jobs</a>
+        <a href="/krishi-yojanas?lang=<%= currentLang %>">Krishi Yojanas</a>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Support</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/?lang=<%= currentLang %>">Home</a>
+        <a href="/farmer/login?lang=<%= currentLang %>">Login</a>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="footer-col-title">Legal</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">(c) 2024 Namma Raitha Digital Ecosystem.</div>
+</footer>
+
+<%- include('partials/micro-interactions') %>
 </body>
 </html>

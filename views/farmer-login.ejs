@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="<%= currentLang %>">
 <head>
     <meta charset="UTF-8">
@@ -7,63 +7,76 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="auth-page farmer-auth-page">
+<body class="auth-page farmer-auth-page auth-v2-page">
 
-<div class="auth-bg"></div>
-<div class="auth-overlay"></div>
-
-<nav class="navbar navbar-expand-lg landing-nav auth-nav">
-    <div class="container">
-        <a class="navbar-brand brand-logo" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
-        <div class="d-flex gap-2">
-            <a href="?lang=en" class="btn btn-sm btn-light">English</a>
-            <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
-            <a href="/?lang=<%= currentLang %>" class="btn nav-contact-btn"><%= t('home') %></a>
-        </div>
-    </div>
-</nav>
-
-<div class="container auth-container">
-    <div class="row align-items-center min-vh-100">
-        <div class="col-lg-6 d-none d-lg-block">
-            <div class="auth-left-content">
-                <span class="hero-mini-tag"><%= t('farmer_login_tag') %></span>
-                <h1 class="auth-hero-title"><%= t('farmer_login_hero') %></h1>
-                <p class="auth-hero-text">
-                    <%= t('farmer_login_text') %>
-                </p>
+<div class="auth-split-shell">
+    <section class="auth-visual-panel">
+        <div class="auth-bg"></div>
+        <div class="auth-overlay"></div>
+        <div class="auth-visual-content">
+            <div class="auth-brand-row">
+                <span class="auth-brand-mark">NR</span>
+                <span class="auth-brand-name">Namma Raitha</span>
+            </div>
+            <span class="hero-mini-tag"><%= t('farmer_login_tag') %></span>
+            <h1 class="auth-hero-title"><%= t('farmer_login_hero') %></h1>
+            <p class="auth-hero-text"><%= t('farmer_login_text') %></p>
+            <div class="auth-trust-row">
+                <div class="auth-avatar-stack" aria-hidden="true">
+                    <span>F1</span><span>F2</span><span>F3</span>
+                </div>
+                <p>Trusted by 50,000+ Farmers</p>
             </div>
         </div>
+    </section>
 
-        <div class="col-lg-6">
-            <div class="auth-card">
-                <h2 class="auth-title"><%= t('farmer_login_title') %></h2>
-                <p class="auth-subtitle"><%= t('farmer_login_subtitle') %></p>
+    <section class="auth-form-panel">
+        <div class="auth-form-wrap">
+            <h2 class="auth-v2-title">Welcome back</h2>
+            <p class="auth-v2-subtitle">Please enter your details to access your account.</p>
 
-                <form action="/farmer/login?lang=<%= currentLang %>" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label auth-label"><%= t('email') %></label>
-                        <input type="email" name="email" class="form-control auth-input" required>
+            <div class="auth-role-toggle" role="tablist" aria-label="Role switch">
+                <a href="/farmer/login?lang=<%= currentLang %>" class="auth-role-pill is-active" aria-current="page">Farmer</a>
+                <a href="/worker/login?lang=<%= currentLang %>" class="auth-role-pill">Worker</a>
+            </div>
+
+            <form action="/farmer/login?lang=<%= currentLang %>" method="POST" class="auth-v2-form">
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('email') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">ID</span>
+                        <input type="email" name="email" class="form-control auth-input" required autocomplete="email">
                     </div>
+                </div>
 
-                    <div class="mb-2">
-                        <label class="form-label auth-label"><%= t('password') %></label>
-                        <input type="password" name="password" class="form-control auth-input" required>
-                    </div>
-
-                    <div class="mb-4 text-end">
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label class="form-label auth-label mb-0"><%= t('password') %></label>
                         <a href="/farmer/forgot-password?lang=<%= currentLang %>" class="auth-link-green"><%= t('forgot_password') %></a>
                     </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="submit" class="btn auth-main-btn"><%= t('login') %></button>
-                        <a href="/farmer/register?lang=<%= currentLang %>" class="btn auth-outline-btn"><%= t('create_account') %></a>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">PW</span>
+                        <input type="password" name="password" class="form-control auth-input" required autocomplete="current-password">
                     </div>
-                </form>
+                </div>
+
+                <button type="submit" class="btn auth-main-btn auth-v2-primary"><%= t('login') %></button>
+
+                <div class="auth-or-divider"><span>OR</span></div>
+
+                <a href="/farmer/register?lang=<%= currentLang %>" class="btn auth-outline-btn auth-v2-secondary"><%= t('create_account') %></a>
+            </form>
+
+            <div class="auth-v2-bottom-links">
+                <a href="?lang=kn">KN</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Help Center</a>
             </div>
+            <p class="auth-v2-footer-note">&copy; 2024 Namma Raitha Digital Ecosystem</p>
         </div>
-    </div>
+    </section>
 </div>
 
 </body>
 </html>
+

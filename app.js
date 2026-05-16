@@ -126,6 +126,25 @@ app.use((req, res, next) => {
     res.locals.t = (key) => {
         return translations[lang][key] || key;
     };
+    res.locals.jobsPortalPath = req.session.farmer ? "/farmer/jobs" : "/worker/jobs";
+    res.locals.jobsPortalLink = `${res.locals.jobsPortalPath}?lang=${lang}`;
+
+    // Expose session user to all views for the unified navbar
+    if (req.session.farmer) {
+        res.locals.currentUser = {
+            name: req.session.farmer.full_name,
+            role: "farmer",
+            dashboardLink: `/farmer/dashboard?lang=${lang}`
+        };
+    } else if (req.session.worker) {
+        res.locals.currentUser = {
+            name: req.session.worker.full_name,
+            role: "worker",
+            dashboardLink: `/worker/dashboard?lang=${lang}`
+        };
+    } else {
+        res.locals.currentUser = null;
+    }
 
     next();
 });
@@ -139,7 +158,13 @@ app.set("views", path.join(__dirname, "views"));
 
 // Routes
 app.get("/", (req, res) => {
-    res.render("index");
+    const lang = req.query.lang === "kn" ? "kn" : "en";
+    const sessionUser = req.session.farmer
+        ? { name: req.session.farmer.full_name, role: "farmer", dashboardLink: `/farmer/dashboard?lang=${lang}` }
+        : req.session.worker
+        ? { name: req.session.worker.full_name, role: "worker", dashboardLink: `/worker/dashboard?lang=${lang}` }
+        : null;
+    res.render("index", { currentUser: sessionUser });
 });
 
 app.get("/farmer/login", (req, res) => {
@@ -181,6 +206,7 @@ app.post("/farmer/login", async (req, res) => {
             subscription_start_date: farmer.subscription_start_date,
             subscription_end_date: farmer.subscription_end_date
         };
+        req.session.worker = null;
 
         res.redirect("/farmer/dashboard");
 
@@ -230,6 +256,7 @@ app.post("/worker/login", async (req, res) => {
                 : worker.skill_category,
             experience_level: worker.experience_level
         };
+        req.session.farmer = null;
 
         res.redirect("/worker/dashboard");
 
@@ -573,7 +600,9 @@ app.get("/worker/jobs", async (req, res) => {
                 payment_mode,
                 sort
             },
-            workerSkills
+            workerSkills,
+            isWorkerView: true,
+            isFarmerView: false
         });
 
     } catch (err) {
@@ -581,6 +610,66 @@ app.get("/worker/jobs", async (req, res) => {
         res.render("error", {
             message: "Error fetching jobs.",
             backLink: "/worker/dashboard"
+        });
+    }
+});
+
+app.get("/farmer/jobs", checkSubscription, async (req, res) => {
+    try {
+        if (!req.session.farmer) {
+            return res.redirect("/farmer/login");
+        }
+
+        const {
+            keyword = "",
+            location = "",
+            category = "",
+            work_type = "",
+            min_wage = "",
+            payment_mode = "",
+            sort = ""
+        } = req.query;
+
+        const filter = { status: "Open" };
+
+        if (keyword) filter.job_title = { $regex: keyword, $options: "i" };
+        if (location) filter.location = { $regex: location, $options: "i" };
+        if (category) filter.category = category;
+        if (work_type) filter.work_type = work_type;
+        if (payment_mode) filter.payment_mode = payment_mode;
+        if (min_wage) filter.wage = { $gte: Number(min_wage) };
+
+        let query = Job.find(filter).lean();
+
+        if (sort === "highest_wage") {
+            query = query.sort({ wage: -1, createdAt: -1 });
+        } else {
+            query = query.sort({ createdAt: -1 });
+        }
+
+        const jobs = await query;
+
+        res.render("worker-jobs", {
+            jobs,
+            filters: {
+                keyword,
+                location,
+                category,
+                work_type,
+                min_wage,
+                payment_mode,
+                sort
+            },
+            workerSkills: [],
+            isWorkerView: false,
+            isFarmerView: true
+        });
+
+    } catch (err) {
+        console.log("MONGO FARMER JOBS ERROR:", err);
+        res.render("error", {
+            message: "Error fetching jobs.",
+            backLink: "/farmer/dashboard"
         });
     }
 });

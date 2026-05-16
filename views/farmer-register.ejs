@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="<%= currentLang %>">
 <head>
     <meta charset="UTF-8">
@@ -7,87 +7,107 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="auth-page farmer-auth-page">
+<body class="auth-page farmer-auth-page auth-v2-page">
 
-<div class="auth-bg"></div>
-<div class="auth-overlay"></div>
-
-<nav class="navbar navbar-expand-lg landing-nav auth-nav">
-    <div class="container">
-        <a class="navbar-brand brand-logo" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
-
-        <div class="d-flex gap-2">
-            <a href="?lang=en" class="btn btn-sm btn-light">English</a>
-            <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
-            <a href="/?lang=<%= currentLang %>" class="btn nav-contact-btn"><%= t('home') %></a>
-        </div>
-    </div>
-</nav>
-
-<div class="container auth-container">
-    <div class="row align-items-center min-vh-100">
-        <div class="col-lg-6 d-none d-lg-block">
-            <div class="auth-left-content">
-                <span class="hero-mini-tag"><%= t('farmer_registration_tag') %></span>
-                <h1 class="auth-hero-title"><%= t('farmer_register_hero') %></h1>
-                <p class="auth-hero-text">
-                    <%= t('farmer_register_text') %>
-                </p>
+<div class="auth-split-shell">
+    <section class="auth-visual-panel">
+        <div class="auth-bg"></div>
+        <div class="auth-overlay"></div>
+        <div class="auth-visual-content">
+            <div class="auth-brand-row">
+                <span class="auth-brand-mark">NR</span>
+                <span class="auth-brand-name">Namma Raitha</span>
+            </div>
+            <span class="hero-mini-tag"><%= t('farmer_registration_tag') %></span>
+            <h1 class="auth-hero-title"><%= t('farmer_register_hero') %></h1>
+            <p class="auth-hero-text"><%= t('farmer_register_text') %></p>
+            <div class="auth-trust-row">
+                <div class="auth-avatar-stack" aria-hidden="true">
+                    <span>F1</span><span>F2</span><span>F3</span>
+                </div>
+                <p>Trusted by 50,000+ Farmers</p>
             </div>
         </div>
+    </section>
 
-        <div class="col-lg-6">
-            <div class="auth-card auth-card-large">
-                <h2 class="auth-title"><%= t('farmer_register_title') %></h2>
-                <p class="auth-subtitle"><%= t('farmer_register_subtitle') %></p>
+    <section class="auth-form-panel">
+        <div class="auth-form-wrap auth-form-wrap-register">
+            <h2 class="auth-v2-title">Create your account</h2>
+            <p class="auth-v2-subtitle">Set up your profile to hire workers and grow your farm operations.</p>
 
-                <form action="/farmer/register?lang=<%= currentLang %>" method="POST">
-                    
-                    <div class="mb-3">
-                        <label class="form-label auth-label"><%= t('full_name') %></label>
+            <div class="auth-role-toggle" role="tablist" aria-label="Role switch">
+                <a href="/farmer/register?lang=<%= currentLang %>" class="auth-role-pill is-active" aria-current="page">Farmer</a>
+                <a href="/worker/register?lang=<%= currentLang %>" class="auth-role-pill">Worker</a>
+            </div>
+
+            <form action="/farmer/register?lang=<%= currentLang %>" method="POST" class="auth-v2-form">
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('full_name') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">NM</span>
                         <input type="text" name="full_name" class="form-control auth-input" required autocomplete="name">
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label auth-label"><%= t('phone') %></label>
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('phone') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">PH</span>
                         <input type="text" name="phone" class="form-control auth-input" required autocomplete="tel">
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label auth-label"><%= t('village') %></label>
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('village') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">VG</span>
                         <input type="text" name="village" class="form-control auth-input" autocomplete="address-level2">
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label auth-label"><%= t('email') %></label>
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('email') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">ID</span>
                         <input type="email" name="email" class="form-control auth-input" required autocomplete="email">
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label auth-label">Choose Subscription Plan</label>
-                        <select name="subscription_plan" class="form-select auth-input" required>
-                            <option value="">Select Plan</option>
-                            <option value="59|3">₹59 - 3 Months</option>
-                            <option value="69|5">₹69 - 5 Months</option>
-                            <option value="79|6">₹79 - 6 Months</option>
-                        </select>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label auth-label">Choose Subscription Plan</label>
+                    <select name="subscription_plan" class="form-select auth-input" required>
+                        <option value="">Select Plan</option>
+                        <option value="59|3">INR 59 - 3 Months</option>
+                        <option value="69|5">INR 69 - 5 Months</option>
+                        <option value="79|6">INR 79 - 6 Months</option>
+                    </select>
+                </div>
 
-                    <div class="mb-4">
-                        <label class="form-label auth-label"><%= t('password') %></label>
+                <div class="mb-3">
+                    <label class="form-label auth-label"><%= t('password') %></label>
+                    <div class="auth-input-wrap">
+                        <span class="auth-input-icon">PW</span>
                         <input type="password" name="password" class="form-control auth-input" required autocomplete="new-password">
                     </div>
+                </div>
 
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="submit" class="btn auth-main-btn"><%= t('register') %></button>
-                        <a href="/farmer/login?lang=<%= currentLang %>" class="btn auth-outline-btn"><%= t('already_have_account') %></a>
-                    </div>
+                <button type="submit" class="btn auth-main-btn auth-v2-primary"><%= t('register') %></button>
 
-                </form>
+                <div class="auth-or-divider"><span>OR</span></div>
+
+                <a href="/farmer/login?lang=<%= currentLang %>" class="btn auth-outline-btn auth-v2-secondary"><%= t('already_have_account') %></a>
+            </form>
+
+            <div class="auth-v2-bottom-links">
+                <a href="?lang=kn">KN</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Help Center</a>
             </div>
+            <p class="auth-v2-footer-note">&copy; 2024 Namma Raitha Digital Ecosystem</p>
         </div>
-    </div>
+    </section>
 </div>
 
 </body>
 </html>
+

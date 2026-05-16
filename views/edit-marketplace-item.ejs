@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="<%= currentLang %>">
 <head>
     <meta charset="UTF-8">
@@ -12,13 +12,17 @@
 <div class="page-overlay" style="background:linear-gradient(180deg, rgba(20,74,36,0.50), rgba(245,249,244,0.95) 48%, rgba(248,251,247,1));"></div>
 
 <nav class="navbar glass-nav">
-    <div class="container">
-        <a class="navbar-brand glass-brand" href="/">🌾 Namma Raitha Jobs</a>
-        <div class="d-flex gap-2">
-            <a href="/marketplace?lang=<%= currentLang %>" class="btn glass-btn">Marketplace</a>
-            <a href="/farmer/my-marketplace-items?lang=<%= currentLang %>" class="btn glass-btn">My Items</a>
-        </div>
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <a href="/farmer/dashboard?lang=<%= currentLang %>" class="btn glass-btn">Dashboard</a>
+      <a href="/marketplace?lang=<%= currentLang %>" class="btn glass-btn">Marketplace</a>
+      <a href="/worker/jobs?lang=<%= currentLang %>" class="btn glass-btn">Jobs</a>
+      <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn glass-btn">Krishi Yojanas</a>
+      <a href="?lang=<%= currentLang === 'en' ? 'kn' : 'en' %>" class="btn glass-btn"><%= currentLang === 'en' ? 'EN' : 'KN' %></a>
+      <a href="/logout?lang=<%= currentLang %>" class="btn pretty-btn-green">Logout</a>
     </div>
+  </div>
 </nav>
 
 <div class="container page-content">
@@ -93,5 +97,37 @@
         </div>
     </div>
 </div>
+<footer class="platform-footer">
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <a class="footer-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+      <p class="footer-mini">Empowering sustainable agriculture through technology, jobs, and trusted marketplace access.</p>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Platform</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/marketplace?lang=<%= currentLang %>">Marketplace</a>
+        <a href="/worker/jobs?lang=<%= currentLang %>">Jobs</a>
+        <a href="/krishi-yojanas?lang=<%= currentLang %>">Krishi Yojanas</a>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Support</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/?lang=<%= currentLang %>">Home</a>
+        <a href="/farmer/login?lang=<%= currentLang %>">Login</a>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="footer-col-title">Legal</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">(c) 2024 Namma Raitha Digital Ecosystem.</div>
+</footer>
 </body>
 </html>
+

@@ -1,0 +1,26 @@
+<!-- Micro-interactions: scroll-reveal + ripple -->
+<script>
+(function(){
+  var io = window.IntersectionObserver && new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('nr-revealed'); io.unobserve(e.target); } });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.soft-card,.dash-metric-card,.stat-card,.dash-action-card,.yojana-card,.job-card-v2,.labor-card,.frost-card').forEach(function(el,i){
+    el.style.transitionDelay = (i % 4) * 55 + 'ms';
+    el.classList.add('nr-reveal-target');
+    if(io) io.observe(el); else el.classList.add('nr-revealed');
+  });
+  document.querySelectorAll('.btn,.nr-nav-btn,.pretty-btn-green,.auth-main-btn').forEach(function(btn){
+    btn.addEventListener('click',function(e){
+      var r=document.createElement('span');
+      var rect=btn.getBoundingClientRect();
+      var size=Math.max(rect.width,rect.height);
+      r.className='nr-ripple';
+      r.style.cssText='width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px';
+      btn.style.position=btn.style.position||'relative';
+      btn.style.overflow='hidden';
+      btn.appendChild(r);
+      setTimeout(function(){ r.remove(); },600);
+    });
+  });
+})();
+</script>

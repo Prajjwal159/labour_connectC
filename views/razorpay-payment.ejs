@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="<%= currentLang %>">
 <head>
     <meta charset="UTF-8">
@@ -7,12 +7,25 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="page-shell">
+<nav class="navbar glass-nav">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="navbar-brand glass-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <a href="/?lang=<%= currentLang %>" class="btn glass-btn">Home</a>
+      <a href="/marketplace?lang=<%= currentLang %>" class="btn glass-btn">Marketplace</a>
+      <a href="/worker/jobs?lang=<%= currentLang %>" class="btn glass-btn">Jobs</a>
+      <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn glass-btn">Krishi Yojanas</a>
+      <a href="?lang=<%= currentLang === 'en' ? 'kn' : 'en' %>" class="btn glass-btn"><%= currentLang === 'en' ? 'EN' : 'KN' %></a>
+      <a href="/farmer/login?lang=<%= currentLang %>" class="btn pretty-btn-green">Sign In</a>
+    </div>
+  </div>
+</nav>
 <div class="container page-content">
     <div class="row justify-content-center align-items-center" style="min-height:90vh;">
         <div class="col-lg-6">
             <div class="frost-card p-5 text-center">
                 <h2 class="text-success fw-bold mb-3"><%= title %></h2>
-                <p><strong>Amount:</strong> ₹<%= amount %></p>
+                <p><strong>Amount:</strong> â‚¹<%= amount %></p>
 
                 <button id="payBtn" class="btn pretty-btn-green mt-3">
                     Pay with Razorpay
@@ -33,7 +46,7 @@ document.getElementById("payBtn").onclick = function () {
         key: "<%= keyId %>",
         amount: "<%= order.amount %>",
         currency: "INR",
-        name: "Namma Raitha Jobs",
+        name: "Namma Raitha",
         description: "<%= title %>",
         order_id: "<%= order.id %>",
         handler: async function (response) {
@@ -67,5 +80,37 @@ document.getElementById("payBtn").onclick = function () {
     rzp.open();
 };
 </script>
+<footer class="platform-footer">
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <a class="footer-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+      <p class="footer-mini">Empowering sustainable agriculture through technology, jobs, and trusted marketplace access.</p>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Platform</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/marketplace?lang=<%= currentLang %>">Marketplace</a>
+        <a href="/worker/jobs?lang=<%= currentLang %>">Jobs</a>
+        <a href="/krishi-yojanas?lang=<%= currentLang %>">Krishi Yojanas</a>
+      </div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="footer-col-title">Support</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="/?lang=<%= currentLang %>">Home</a>
+        <a href="/farmer/login?lang=<%= currentLang %>">Login</a>
+      </div>
+    </div>
+    <div class="col-12 col-lg-3">
+      <div class="footer-col-title">Legal</div>
+      <div class="d-grid gap-2 mt-2">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">(c) 2024 Namma Raitha Digital Ecosystem.</div>
+</footer>
 </body>
 </html>
+

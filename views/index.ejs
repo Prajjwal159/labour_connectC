@@ -3,234 +3,533 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= t('app_name') %></title>
+    <title><%= t('app_name') || 'Namma Raitha' %></title>
+    <!-- Premium Fonts: Inter and Sora -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="landing-body">
 
-    <section class="hero-wrapper">
-        <div class="hero-overlay"></div>
+<!-- ── Opening Animation Curtain ───────────────────────────────── -->
+<div id="nr-intro" aria-hidden="true">
+  <div id="nr-intro-text">
+    <svg id="nr-intro-leaf" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#b7d9bf" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><path d="M12 22v-9"/><path d="M12 17l-4-4"/><path d="M12 13l4-4"/></svg>
+    <span id="nr-intro-typed"></span><span id="nr-intro-cursor">|</span>
+  </div>
+</div>
+<style>
+#nr-intro {
+  position: fixed; inset: 0; z-index: 100000;
+  background: #0d2414;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  transition: transform 0.72s cubic-bezier(0.76,0,0.24,1);
+}
+#nr-intro.nr-intro-out {
+  transform: translateY(-100%);
+}
+#nr-intro-text {
+  display: flex; align-items: center; gap: 14px;
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700;
+  color: #e8f5eb;
+  letter-spacing: -0.02em;
+}
+#nr-intro-cursor {
+  color: #4A6752;
+  animation: nr-blink 0.7s step-start infinite;
+}
+@keyframes nr-blink { 50% { opacity: 0; } }
+</style>
+<script>
+(function(){
+  var intro = document.getElementById('nr-intro');
+  if(!intro) return;
+  // Task 1: Only show once per session — language toggle won't retrigger
+  if(sessionStorage.getItem('nr_intro_seen')) {
+    intro.style.display='none';
+    return;
+  }
+  var typed = document.getElementById('nr-intro-typed');
+  var text = 'Namma Raitha', i = 0;
+  document.body.style.overflow = 'hidden';
+  function typeChar() {
+    if(i < text.length) {
+      typed.textContent += text[i++];
+      setTimeout(typeChar, i===1?300:58);
+    } else {
+      setTimeout(function(){
+        intro.classList.add('nr-intro-out');
+        document.body.style.overflow = '';
+        sessionStorage.setItem('nr_intro_seen','1');
+        setTimeout(function(){ intro.style.display='none'; }, 750);
+      }, 520);
+    }
+  }
+  setTimeout(typeChar, 180);
+})();
+</script>
 
-        <nav class="navbar navbar-expand-lg landing-nav">
-            <div class="container">
-                <a class="navbar-brand brand-logo" href="/?lang=<%= currentLang %>">🌾 <%= t('app_name') %></a>
+<style>
+/* Task 1: Hero entry animations — start AFTER the intro curtain is gone */
+/* Default: first visit, intro plays ~2.1s before reveal */
+:root { --nr-hero-base: 2.15s; }
+.hero-anim-chip { animation: nr-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) calc(var(--nr-hero-base) + 0.00s) both; }
+.hero-anim-h1   { animation: nr-hero-in 0.7s cubic-bezier(0.22,1,0.36,1) calc(var(--nr-hero-base) + 0.14s) both; }
+.hero-anim-sub  { animation: nr-hero-in 0.7s cubic-bezier(0.22,1,0.36,1) calc(var(--nr-hero-base) + 0.27s) both; }
+.hero-anim-cta  { animation: nr-hero-in 0.7s cubic-bezier(0.22,1,0.36,1) calc(var(--nr-hero-base) + 0.40s) both; }
+@keyframes nr-hero-in {
+  from { opacity:0; transform: translateY(24px); }
+  to   { opacity:1; transform: none; }
+}
+/* Task 2: Card bounce-in then smooth float — delays timed so float begins exactly when bounce ends */
+/* bounce_start + 0.8s_duration = float_start */
+.fc-bounce.nr-float-1 { opacity:0; animation: nr-fc-bounce 0.8s cubic-bezier(0.34,1.56,0.64,1) calc(var(--nr-hero-base) + 0.30s) forwards, float 6s ease-in-out calc(var(--nr-hero-base) + 1.10s) infinite; }
+.fc-bounce.nr-float-2 { opacity:0; animation: nr-fc-bounce 0.8s cubic-bezier(0.34,1.56,0.64,1) calc(var(--nr-hero-base) + 0.50s) forwards, float 5s ease-in-out calc(var(--nr-hero-base) + 1.30s) infinite reverse; }
+.fc-bounce.nr-float-3 { opacity:0; animation: nr-fc-bounce 0.8s cubic-bezier(0.34,1.56,0.64,1) calc(var(--nr-hero-base) + 0.70s) forwards, float 7s ease-in-out calc(var(--nr-hero-base) + 1.50s) infinite; }
+@keyframes nr-fc-bounce {
+  0%   { opacity:0; transform: translateY(30px) scale(0.92); }
+  60%  { opacity:1; transform: translateY(-8px) scale(1.02); }
+  80%  { transform: translateY(2px) scale(0.99); }
+  100% { opacity:1; transform: translateY(0px); }
+}
+</style>
+<script>
+/* If intro already seen (returning visit), hero fires immediately */
+if(sessionStorage.getItem('nr_intro_seen')){
+  document.documentElement.style.setProperty('--nr-hero-base','0s');
+}
+</script>
 
-                <div class="nav-pill d-none d-lg-flex">
-                    <a href="/?lang=<%= currentLang %>" class="active"><%= t('home') %></a>
-                    <a href="#about"><%= t('about_us') %></a>
-                    <a href="#solutions"><%= t('solutions') %></a>
-                    <a href="#impact"><%= t('impact') %></a>
-                    <a href="#access"><%= t('access') %></a>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <a href="?lang=en" class="btn btn-sm btn-light">English</a>
-                    <a href="?lang=kn" class="btn btn-sm btn-success">ಕನ್ನಡ</a>
-                    <a href="/farmer/login?lang=<%= currentLang %>" class="btn nav-contact-btn"><%= t('login') %></a>
-                    <a href="/marketplace?lang=<%= currentLang %>" class="btn nav-contact-btn">Marketplace</a>
-                    <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn glass-btn">Krishi Yojanas</a>
-                </div>
-            </div>
-        </nav>
-
-        <div class="container hero-content">
-            <div class="row align-items-center min-vh-100">
-                <div class="col-lg-7">
-                    <div class="hero-text-box">
-                        <p class="hero-mini-tag"><%= t('hero_tagline') %></p>
-                        <h1 class="hero-title">
-                            <%= t('hero_title_line1') %>
-                            <span><%= t('hero_title_line2') %></span>
-                        </h1>
-                        <p class="hero-subtitle">
-                            <%= t('hero_subtitle') %>
-                        </p>
-
-                        <div class="hero-buttons mt-4">
-                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn btn-hero-primary"><%= t('start_as_farmer') %> ↗</a>
-                            <a href="/worker/register?lang=<%= currentLang %>" class="btn btn-hero-secondary"><%= t('join_as_worker') %></a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-5 d-none d-lg-block">
-                    <div class="hero-side-card">
-                        <div class="hero-stat-row">
-                            <div>
-                                <h5>140M+</h5>
-                                <p><%= t('farmers_in_india') %></p>
-                            </div>
-                            <div>
-                                <h5>5 <%= t('types_short') %></h5>
-                                <p><%= t('flexible_hiring_modes') %></p>
-                            </div>
-                        </div>
-
-                        <div class="hero-stat-row">
-                            <div>
-                                <h5>2 <%= t('roles_short') %></h5>
-                                <p><%= t('farmers_workers') %></p>
-                            </div>
-                            <div>
-                                <h5><%= t('rural_first') %></h5>
-                                <p><%= t('built_for_accessibility') %></p>
-                            </div>
-                        </div>
-
-                        <div class="hero-side-note">
-                            <%= t('hero_side_note') %>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="trusted-strip">
+    <%
+      const navLinks = [
+        { key: 'marketplace', href: `/marketplace?lang=${currentLang}`, label: 'Marketplace' },
+        { key: 'jobs', href: jobsPortalLink || `/worker/jobs?lang=${currentLang}`, label: 'Jobs' },
+        { key: 'yojanas', href: `/krishi-yojanas?lang=${currentLang}`, label: 'Krishi Yojanas' }
+      ];
+    %>
+    <%- include('partials/unified-navbar', { navId: 'landingNav', fixed: true, active: '', links: navLinks }) %>
+    <!-- Split Hero Section -->
+    <section class="hero-split-section" style="position: relative; overflow: visible; background: transparent;">
         <div class="container">
-            <div class="row align-items-center text-center gy-3">
-                <div class="col-lg-3 text-lg-start">
-                    <p class="trusted-text mb-0"><%= t('trusted_strip_text') %></p>
-                </div>
-                <div class="col-lg-9">
-                    <div class="brand-strip">
-                        <span><%= t('farm_hiring') %></span>
-                        <span><%= t('rural_jobs') %></span>
-                        <span><%= t('seasonal_work') %></span>
-                        <span><%= t('digital_access') %></span>
-                        <span><%= t('agri_workforce') %></span>
+            <div class="row align-items-center">
+                <!-- Left Content -->
+                <div class="col-lg-5 hero-content-left pe-lg-5 mt-n5">
+                    <div class="hero-chip hero-anim-chip mb-4" style="display: inline-flex; align-items: center; background: #eef7ec; padding: 6px 16px; border-radius: 50px; font-size: 0.85rem; font-weight: 600; color: #4A6752; border: 1px solid #d1e7d4;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <span>Agri-Modernism Platform</span>
                     </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section-space bg-white" id="about">
-        <div class="container">
-            <div class="section-label"><%= t('cultivating_opportunity') %></div>
-            <div class="row align-items-center gy-5">
-                <div class="col-lg-8">
-                    <h2 class="big-section-heading">
-                        <%= t('about_big_text') %>
-                    </h2>
-                </div>
-                <div class="col-lg-4">
-                    <div class="image-bubble-card">
-                        <img src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=80" alt="Farming">
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section-space soft-section" id="solutions">
-        <div class="container">
-            <div class="row gy-4 align-items-start">
-                <div class="col-lg-6">
-                    <div class="section-label"><%= t('about_app') %></div>
-                    <h2 class="solution-title">
-                        <%= t('solutions_title_1') %>
-                        <span><%= t('solutions_title_2') %></span>
-                    </h2>
-
-                    <div class="solution-feature active-feature">
-                        <div class="feature-top">
-                            <span>🌱</span>
-                            <strong><%= t('structured_hiring') %></strong>
-                            <span>—</span>
-                        </div>
-                        <p>
-                            <%= t('structured_hiring_text') %>
-                        </p>
-                    </div>
-
-                    <div class="solution-feature">
-                        <div class="feature-top">
-                            <span>👨‍🌾</span>
-                            <strong><%= t('worker_opportunity_access') %></strong>
-                            <span>+</span>
-                        </div>
-                    </div>
-
-                    <div class="solution-feature">
-                        <div class="feature-top">
-                            <span>🌐</span>
-                            <strong><%= t('multilingual_rural_design') %></strong>
-                            <span>+</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-6">
-                    <p class="solution-side-text">
-                        <%= t('solutions_side_text') %>
+                    <h1 class="hero-title hero-anim-h1 mb-4" style="font-family: 'Sora', sans-serif; font-size: clamp(2.5rem, 4vw, 3.8rem); font-weight: 700; color: #1a202c; line-height: 1.1; text-wrap: balance;">
+                        Empowering Farmers Through Work, Trade &amp; Opportunity
+                    </h1>
+                    <p class="hero-subtitle hero-anim-sub mb-4" style="font-size: 1.1rem; color: #4a5568; line-height: 1.6; max-width: 90%;">
+                        The all-in-one digital companion for the modern Indian farmer. Hire skilled help, trade your produce at the best prices, and never miss a government scheme again.
                     </p>
+                    <div class="hero-cta-group hero-anim-cta d-flex gap-3">
+                        <a href="/farmer/login?lang=<%= currentLang %>" class="btn" style="background: #3d5c44; color: #fff; border-radius: 12px; padding: 12px 28px; font-weight: 700; border: none; box-shadow: 0 4px 14px rgba(74,103,82,0.3); text-decoration: none;">
+                            Get Started
+                        </a>
+                        <a href="/marketplace?lang=<%= currentLang %>" class="btn" style="border: 1.5px solid #4A6752; border-radius: 12px; padding: 12px 28px; font-weight: 600; color: #4A6752; text-decoration: none; background: transparent;">Explore Marketplace</a>
+                    </div>
+                </div>
 
-                    <div class="solution-image-card">
-                        <img src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1200&q=80" alt="Farmer working in field">
+                <!-- Right Image: cards live in this col, image inside its own div -->
+                <div class="col-lg-7 position-relative" style="padding-top: 40px; padding-bottom: 40px;">
+
+                    <!-- Floating Card 1: Marketplace Insight (outside image, top-left) -->
+                    <div class="fc-bounce nr-float-1" style="animation-delay:0.55s; position: absolute; top: 8%; left: 0; z-index: 20; background: #fff; padding: 14px 16px; border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.10); display: flex; flex-direction: column; gap: 6px; border: 1px solid #f0f0f0; animation-name: nr-fc-bounce; min-width: 160px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="background: #eef7ec; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #4A6752;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            </div>
+                            <span style="font-size: 0.78rem; font-weight: 700; color: #1a202c;">Marketplace</span>
+                        </div>
+                        <p style="margin: 2px 0 0; font-size: 0.72rem; color: #718096;">Wheat (Grade A)</p>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <p style="margin: 0; font-size: 1rem; color: #1a202c; font-weight: 800;">&#8377;2,450/q</p>
+                            <span style="background: #eef7ec; color: #16A34A; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">↑ 2.4%</span>
+                        </div>
+                    </div>
+
+                    <!-- Floating Card 2: Worker Availability (outside image, right) -->
+                    <div class="fc-bounce nr-float-2" style="animation-delay:0.75s; position: absolute; top: 40%; right: 0; z-index: 20; background: #fff; padding: 12px 14px; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.10); display: flex; align-items: center; gap: 10px; border: 1px solid #f0f0f0; animation-name: nr-fc-bounce; min-width: 170px;">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 2px solid #e2e8f0; flex-shrink: 0;">
+                            <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=100&q=80" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <p style="margin: 0; font-size: 0.82rem; color: #1a202c; font-weight: 700;">Ramesh K.</p>
+                                <div style="width: 6px; height: 6px; border-radius: 50%; background: #16A34A;"></div>
+                            </div>
+                            <p style="margin: 1px 0 0; font-size: 0.68rem; color: #718096;">Tractor Operator &bull; Available Now</p>
+                        </div>
+                    </div>
+
+                    <!-- Floating Card 3: Krishi Yojana (outside image, bottom-left) -->
+                    <div class="fc-bounce nr-float-3" style="animation-delay:0.95s; position: absolute; bottom: 8%; left: 0; z-index: 20; background: #fff; padding: 12px 14px; border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.10); display: flex; align-items: center; gap: 10px; border: 1px solid #f0f0f0; animation-name: nr-fc-bounce; min-width: 190px;">
+                        <div style="background: #d1e7d4; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #4A6752; flex-shrink: 0;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        </div>
+                        <div>
+                            <p style="margin: 0; font-size: 0.6rem; color: #718096; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Krishi Yojanas</p>
+                            <p style="margin: 2px 0; font-size: 0.82rem; color: #1a202c; font-weight: 800;">PM-Kisan Scheme</p>
+                            <p style="margin: 0; font-size: 0.68rem; color: #718096;">Deadline: 2 days left</p>
+                        </div>
+                    </div>
+
+                    <!-- The actual image (cards do NOT live inside this div) -->
+                    <div style="position: relative; width: 85%; aspect-ratio: 4/3; border-radius: 28px; margin: 0 auto;">
+                        <img src="/images/hero.jpg" alt="Indian Farmer" fetchpriority="high" loading="eager" width="800" height="600" style="width: 100%; height: 100%; object-fit: cover; border-radius: 28px; box-shadow: 0 20px 48px rgba(0,0,0,0.12); display: block;">
+                        <!-- Weather chip sits inside the image (bottom-right corner) -->
+                        <div style="position: absolute; bottom: 14px; right: 14px; z-index: 10; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); padding: 6px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.7); display: flex; align-items: center; gap: 6px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4A6752" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                            <span style="font-size: 0.75rem; font-weight: 700; color: #1a202c;">28°C Optimal</span>
+                        </div>
+                    </div>
+                    <style>
+                        @media (prefers-reduced-motion: no-preference) {
+                            @keyframes float {
+                                0% { transform: translateY(0px); }
+                                50% { transform: translateY(-8px); }
+                                100% { transform: translateY(0px); }
+                            }
+                        }
+                        @media (prefers-reduced-motion: reduce) {
+                            .floating-card, [style*="animation: float"] { animation: none !important; }
+                        }
+                    </style>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Core Pillars Section -->
+    <section class="core-pillars-section">
+        <div class="container">
+            <div class="section-header text-center mx-auto" style="max-width: 600px;">
+                <h2 class="section-title">Empowering Every Step</h2>
+                <p class="section-subtitle">From sowing seeds to reaping rewards, we provide the digital infrastructure needed for modern farming excellence.</p>
+            </div>
+
+            <div class="row g-4 mt-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="pillar-card">
+                        <div class="pillar-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                        </div>
+                        <h4 class="pillar-title">Marketplace</h4>
+                        <p class="pillar-text">Buy seeds, fertilizers and sell produce directly to buyers at premium prices.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="pillar-card">
+                        <div class="pillar-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                        </div>
+                        <h4 class="pillar-title">Jobs</h4>
+                        <p class="pillar-text">Connect with skilled agricultural labor or find seasonal work across the region.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="pillar-card">
+                        <div class="pillar-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+                        </div>
+                        <h4 class="pillar-title">Schemes</h4>
+                        <p class="pillar-text">Access central and state government Krishi Yojanas with direct application links.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="pillar-card">
+                        <div class="pillar-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </div>
+                        <h4 class="pillar-title">Krishi Yojanas</h4>
+                        <p class="pillar-text">Access central and state government schemes with direct application links and eligibility checks.</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section-space bg-white" id="impact">
+    <!-- Trending Marketplace -->
+    <section class="marketplace-preview-section">
         <div class="container">
-            <div class="section-label"><%= t('platform_impact') %></div>
+            <div class="d-flex justify-content-between align-items-end mb-4 pb-2 border-bottom">
+                <div>
+                    <h2 class="section-title mb-1">Trending Marketplace</h2>
+                    <p class="section-subtitle mb-0">Direct from the fields to the nation's tables.</p>
+                </div>
+                <a href="/marketplace?lang=<%= currentLang %>" class="view-all-link text-decoration-none">
+                    View All Products
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ms-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+        </div>
+
+        <style>
+        .nr-marquee-outer {
+            overflow: hidden;
+            width: 100%;
+            padding: 4px 0 28px;
+            cursor: default;
+        }
+        .nr-marquee-outer:hover .nr-marquee-inner {
+            animation-play-state: paused;
+        }
+        .nr-marquee-inner {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 20px;
+            width: max-content;
+            animation: nr-marquee-scroll 32s linear infinite;
+        }
+        @keyframes nr-marquee-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .nr-marquee-inner .nr-card-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            width: 280px;
+            flex: 0 0 280px;
+        }
+        .nr-marquee-inner .nr-card-link .product-card {
+            width: 280px;
+        }
+        </style>
+
+        <div class="nr-marquee-outer">
+          <div class="nr-marquee-inner">
+            <!-- SET A (8 cards) -->
+            <!-- card helper macro: renders one product card -->
+            <% function renderCard(img, alt, badge, name, seller, price) { %>
+            <a href="/marketplace?lang=<%= currentLang %>" class="nr-card-link">
+              <div class="product-card">
+                <div class="product-img-wrap">
+                  <% if (badge) { %><span class="product-badge"><%= badge %></span><% } %>
+                  <img src="<%= img %>" alt="<%= alt %>" width="500" height="375" decoding="async">
+                </div>
+                <div class="product-info">
+                  <h4 class="product-name"><%= name %></h4>
+                  <p class="product-seller"><%= seller %></p>
+                  <div class="product-price-row">
+                    <span class="product-price">&#8377;<%= price %></span>
+                    <span class="btn-add-product" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
+            <% } %>
+
+            <% var _cards = [
+              { img:'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&w=500&q=80', alt:'Carrots',     badge:'Organic',  name:'Fresh Carrots',    seller:'Farmer Basavaraju B. \u2022 Tumakuru',  price:'45/kg'    },
+              { img:'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?auto=format&fit=crop&w=500&q=80', alt:'Onions',      badge:null,       name:'Red Onions',       seller:'Farmer Lakshmana M. \u2022 Mandya',     price:'32/kg'    },
+              { img:'https://images.unsplash.com/photo-1563514222080-398c14c57176?auto=format&fit=crop&w=500&q=80', alt:'Bell Peppers',badge:null,       name:'Bell Peppers',     seller:'Farmer Gowda R. \u2022 Kolar',          price:'80/kg'    },
+              { img:'https://images.unsplash.com/photo-1586201375761-83865001e8ac?auto=format&fit=crop&w=500&q=80', alt:'Rice',        badge:null,       name:'Sona Masuri',      seller:'Farmer Siddappa S. \u2022 Raichur',     price:'60/kg'    },
+              { img:'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&w=500&q=80', alt:'Tomatoes',    badge:null,       name:'Fresh Tomatoes',   seller:'Farmer Manjunath G. \u2022 Belagavi',   price:'28/kg'    },
+              { img:'https://images.unsplash.com/photo-1615485925600-97237c4fc1ec?auto=format&fit=crop&w=500&q=80', alt:'Turmeric',    badge:'Seasonal', name:'Turmeric Root',    seller:'Farmer Savitha R. \u2022 Dharwad',      price:'120/kg'   },
+              { img:'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=500&q=80', alt:'Jowar',       badge:null,       name:'Jowar (Sorghum)',  seller:'Farmer Prakash N. \u2022 Vijayapura',   price:'38/kg'    },
+              { img:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=500&q=80', alt:'Sugarcane',   badge:'Organic',  name:'Sugarcane',        seller:'Farmer Thippeswamy K. \u2022 Mandya',   price:'3/stick'  }
+            ]; %>
+
+            <!-- SET A -->
+            <% _cards.forEach(function(c){ renderCard(c.img,c.alt,c.badge,c.name,c.seller,c.price); }); %>
+            <!-- SET B (exact duplicate for seamless loop) -->
+            <% _cards.forEach(function(c){ renderCard(c.img,c.alt,c.badge,c.name,c.seller,c.price); }); %>
+
+          </div><!-- /.nr-marquee-inner -->
+        </div><!-- /.nr-marquee-outer -->
+    </section>
+
+    <!-- Labor Opportunities Section -->
+    <section class="labor-opportunities-section" style="padding: 80px 0; background: #f8faf9;">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-end mb-4">
+                <h2 class="section-title mb-0">Labor Opportunities</h2>
+                <a href="/worker/jobs?lang=<%= currentLang %>" class="view-all-link-sm text-decoration-none">View All</a>
+            </div>
+            
+            <div class="row g-4 mb-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="job-list-card h-100" style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex !important; flex-direction: column !important; align-items: flex-start !important; text-align: left !important;">
+                        <div class="job-icon bg-green-light mb-3" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #eef7ec;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </div>
+                        <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin-bottom: 8px;">Harvester Team</h4>
+                        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 20px;">Shimoga &bull; 15 Vacancies &bull; Daily Wage</p>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-auto w-100">
+                            <h5 style="font-size: 1.1rem; font-weight: 800; color: #4A6752; margin: 0;">&#8377;600/day</h5>
+                            <a href="/worker/login?lang=<%= currentLang %>" class="btn btn-outline-primary-green btn-sm" style="border: 1px solid #4A6752; color: #4A6752; font-weight: 600; border-radius: 8px; padding: 6px 16px;">Apply Now</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                    <div class="job-list-card h-100" style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex !important; flex-direction: column !important; align-items: flex-start !important; text-align: left !important;">
+                        <div class="job-icon bg-green-light mb-3" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #eef7ec;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                        </div>
+                        <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin-bottom: 8px;">Tractor Operator</h4>
+                        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 20px;">Hassan &bull; 2 Vacancies &bull; Contract</p>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-auto w-100">
+                            <h5 style="font-size: 1.1rem; font-weight: 800; color: #4A6752; margin: 0;">&#8377;1200/day</h5>
+                            <a href="/worker/login?lang=<%= currentLang %>" class="btn btn-outline-primary-green btn-sm" style="border: 1px solid #4A6752; color: #4A6752; font-weight: 600; border-radius: 8px; padding: 6px 16px;">Apply Now</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6">
+                    <div class="job-list-card h-100" style="background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex !important; flex-direction: column !important; align-items: flex-start !important; text-align: left !important;">
+                        <div class="job-icon bg-green-light mb-3" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #eef7ec;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <h4 style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin-bottom: 8px;">Irrigation Specialist</h4>
+                        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 20px;">Bellary &bull; 4 Vacancies &bull; Seasonal</p>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-auto w-100">
+                            <h5 style="font-size: 1.1rem; font-weight: 800; color: #4A6752; margin: 0;">&#8377;800/day</h5>
+                            <a href="/worker/login?lang=<%= currentLang %>" class="btn btn-outline-primary-green btn-sm" style="border: 1px solid #4A6752; color: #4A6752; font-weight: 600; border-radius: 8px; padding: 6px 16px;">Apply Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-5 d-flex justify-content-center gap-3 flex-wrap">
+                <a href="<%= jobsPortalLink || `/worker/jobs?lang=${currentLang}` %>" class="btn btn-primary-green" style="background: #4A6752; color: white; border-radius: 12px; padding: 14px 32px; font-weight: 600; font-size: 1.05rem; text-decoration: none; border: none; box-shadow: 0 10px 25px rgba(74, 103, 82, 0.2);">Explore All Job Listings</a>
+                <% if (currentUser && currentUser.role === 'farmer') { %>
+                <a href="/farmer/post-job?lang=<%= currentLang %>" class="btn" style="background: #fff; color: #4A6752; border: 2px solid #4A6752; border-radius: 12px; padding: 14px 32px; font-weight: 600; font-size: 1.05rem; text-decoration: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-1"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Post a Job
+                </a>
+                <% } %>
+            </div>
+        </div>
+    </section>
+
+    <!-- Krishi Yojanas Section -->
+    <section class="schemes-section" style="padding: 80px 0;">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-end mb-5 pb-2 border-bottom">
+                <div>
+                    <h2 class="section-title mb-1">Krishi Yojanas</h2>
+                    <p class="section-subtitle mb-0">Government support for your agricultural journey.</p>
+                </div>
+                <a href="/krishi-yojanas?lang=<%= currentLang %>" class="view-all-link-sm text-muted text-decoration-none">Government Portal</a>
+            </div>
+            
             <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="impact-card">
-                        <div class="impact-icon">⏱️</div>
-                        <h4><%= t('faster_hiring') %></h4>
-                        <p><%= t('faster_hiring_text') %></p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="impact-card">
-                        <div class="impact-icon">💼</div>
-                        <h4><%= t('job_stability') %></h4>
-                        <p><%= t('job_stability_text') %></p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="impact-card">
-                        <div class="impact-icon">📱</div>
-                        <h4><%= t('digital_inclusion') %></h4>
-                        <p><%= t('digital_inclusion_text') %></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section-space soft-section" id="access">
-        <div class="container">
-            <div class="row align-items-center gy-4">
-                <div class="col-lg-6">
-                    <h2 class="access-title"><%= t('get_started_title') %></h2>
-                    <p class="access-text">
-                        <%= t('get_started_text') %>
-                    </p>
-                </div>
-                <div class="col-lg-6">
-                    <div class="access-card">
-                        <div class="access-btn-grid">
-                            <a href="/farmer/register?lang=<%= currentLang %>" class="btn access-main-btn"><%= t('farmer_register') %></a>
-                            <a href="/farmer/login?lang=<%= currentLang %>" class="btn access-outline-btn"><%= t('farmer_login') %></a>
-                            <a href="/worker/register?lang=<%= currentLang %>" class="btn access-main-btn blue-btn"><%= t('worker_register') %></a>
-                            <a href="/worker/login?lang=<%= currentLang %>" class="btn access-outline-btn blue-outline"><%= t('worker_login') %></a>
+                <div class="col-lg-4">
+                    <div class="scheme-card bg-deep-green text-white h-100" style="padding: 32px; border-radius: 20px;">
+                        <div class="scheme-icon-white mb-4">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                         </div>
+                        <h4 class="scheme-title text-white mb-3" style="font-size: 1.4rem;">PM Kisan Samman</h4>
+                        <p class="scheme-text text-white-50 mb-4" style="font-size: 1rem; line-height: 1.6;">Income support of &#8377;6,000 per year in three installments.</p>
+                        <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn btn-scheme-white" style="background: white; color: var(--brand-green-dark); font-weight: 700; border-radius: 8px; padding: 10px 20px; text-decoration: none; display: inline-block;">Check Eligibility</a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="scheme-card bg-warm h-100" style="padding: 32px; border-radius: 20px; border: 1px solid #e2e8f0;">
+                        <div class="scheme-icon mb-4" style="color: #4A6752;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        </div>
+                        <h4 class="scheme-title mb-3" style="font-size: 1.4rem; color: #1a202c;">Fasal Bima</h4>
+                        <p class="scheme-text mb-4" style="font-size: 1rem; line-height: 1.6; color: #4a5568;">Crop insurance against natural calamities and pests.</p>
+                        <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn" style="background: #4A6752; color: white; font-weight: 700; border-radius: 8px; padding: 10px 20px; text-decoration: none; display: inline-block;">Apply Direct</a>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="scheme-card-wide bg-lime-light h-100" style="padding: 32px; border-radius: 20px;">
+                        <div class="scheme-icon mb-4" style="color: #4A6752;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                        </div>
+                        <h4 class="scheme-title mb-3" style="font-size: 1.4rem; color: #1a202c;">Kisan Credit Card (KCC)</h4>
+                        <p class="scheme-text mb-4" style="font-size: 1rem; line-height: 1.6; color: #4a5568;">Flexible credit for farm operations at subsidized interest rates.</p>
+                        <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn" style="background: #4A6752; color: white; font-weight: 700; border-radius: 8px; padding: 10px 20px; text-decoration: none; display: inline-block;">Get KCC Notice</a>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+
+    <!-- CTA Banner Section -->
+    <section class="cta-banner-section" style="padding: 80px 0;">
+        <div class="container">
+            <div class="cta-banner" style="background-image: linear-gradient(rgba(26, 32, 44, 0.6), rgba(26, 32, 44, 0.6)), url('https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=1200&q=80'); background-size: cover; background-position: center; border-radius: 24px; padding: 80px 40px; color: white;">
+                <div class="cta-content text-center mx-auto" style="max-width: 700px; position: relative; z-index: 2;">
+                    <h2 class="mb-3" style="font-family: 'Sora', sans-serif;">Ready to Transform Your Farming Journey?</h2>
+                    <p class="mb-4">Join thousands of Indian farmers who are already reaping the benefits of the Namma Raitha digital ecosystem.</p>
+                    <div class="cta-buttons justify-content-center mt-4">
+                        <a href="/farmer/login?lang=<%= currentLang %>" class="btn btn-white-lg">Sign Up Free</a>
+                        <a href="/krishi-yojanas?lang=<%= currentLang %>" class="btn btn-outline-white-lg">Talk to an <strong>Expert</strong></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Premium Footer -->
+    <footer class="premium-footer">
+        <div class="container">
+            <div class="row g-5">
+                <div class="col-lg-4">
+                    <a class="footer-brand" href="/?lang=<%= currentLang %>">Namma Raitha</a>
+                    <p class="footer-description mt-3">
+                        © <%= new Date().getFullYear() %> Namma Raitha Digital Ecosystem. Empowering nationwide agriculture through technology, market access, and financial inclusion for the Indian farmer.
+                    </p>
+                    <div class="footer-socials mt-4">
+                        <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg></a>
+                        <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg></a>
+                        <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></a>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2 offset-lg-1">
+                    <h5 class="footer-title">Platform</h5>
+                    <ul class="footer-links list-unstyled">
+                        <li><a href="#about">About Us</a></li>
+                        <li><a href="/marketplace?lang=<%= currentLang %>">Marketplace</a></li>
+                        <li><a href="/worker/jobs?lang=<%= currentLang %>">Jobs</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <h5 class="footer-title">Resources</h5>
+                    <ul class="footer-links list-unstyled">
+                        <li><a href="/krishi-yojanas?lang=<%= currentLang %>">Government Schemes</a></li>
+                        <li><a href="#">Farmer Guide</a></li>
+                        <li><a href="#">Contact Support</a></li>
+                    </ul>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <h5 class="footer-title">Legal</h5>
+                    <ul class="footer-links list-unstyled">
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom text-center mt-5 pt-4 border-top">
+                <p class="mb-0 text-muted">Supported by the Department of Agriculture and Farmers Welfare.</p>
+            </div>
+        </div>
+    </footer>
     <!-- Voice Assistant Floating Button -->
-<button id="voiceAssistantToggle" class="voice-assistant-btn" type="button">
-    🎤
+<button id="voiceAssistantToggle" class="voice-assistant-btn" type="button" aria-label="Open Voice Assistant">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+        <line x1="12" y1="18" x2="12" y2="22"></line>
+        <line x1="8" y1="22" x2="16" y2="22"></line>
+    </svg>
 </button>
 
 <!-- Voice Assistant Panel -->
@@ -276,9 +575,18 @@
     border-radius: 50%;
     background: #1f8f4e;
     color: white;
-    font-size: 28px;
+    font-size: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     z-index: 9999;
+}
+.voice-assistant-btn svg {
+    width: 26px;
+    height: 26px;
+    display: block;
 }
 
 .voice-assistant-panel {
@@ -375,6 +683,7 @@ toggleBtn.addEventListener("click", () => {
 closeBtn.addEventListener("click", () => {
     panel.classList.add("d-none");
 });
+
 
 if (!SpeechRecognition) {
     statusText.textContent = "Voice not supported in this browser. Use Chrome or Edge.";
@@ -485,5 +794,82 @@ if (!SpeechRecognition) {
     };
 }
 </script>
+<script>
+(() => {
+    const nav = document.getElementById("landingNav");
+    const revealItems = document.querySelectorAll(".landing-reveal, .job-preview-card, .impact-card, .access-role-card");
+
+    if (nav) {
+        const onScroll = () => {
+            if (window.scrollY > 20) {
+                nav.classList.add("is-scrolled");
+            } else {
+                nav.classList.remove("is-scrolled");
+            }
+        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+    }
+
+    if ("IntersectionObserver" in window && revealItems.length > 0) {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add("is-visible");
+                    io.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.18 });
+
+        revealItems.forEach((item, index) => {
+            item.style.transitionDelay = `${Math.min(index * 60, 300)}ms`;
+            io.observe(item);
+        });
+    } else {
+        revealItems.forEach((item) => item.classList.add("is-visible"));
+    }
+})();
+</script>
+<!-- Micro-interaction: scroll reveal + stagger for section cards -->
+<script>
+(function(){
+  // Scroll-reveal
+  var io = window.IntersectionObserver && new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('nr-revealed'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+  document.querySelectorAll('.soft-card,.dash-metric-card,.stat-card,.dash-action-card,.yojana-card,.job-card-v2,.labor-card,.feature-item').forEach(function(el,i){
+    el.style.transitionDelay = (i % 4) * 60 + 'ms';
+    el.classList.add('nr-reveal-target');
+    if(io) io.observe(el); else el.classList.add('nr-revealed');
+  });
+  // Button ripple effect
+  document.querySelectorAll('.btn,.nr-nav-btn,.auth-main-btn,.pretty-btn-green,.btn-add-product').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      var r = document.createElement('span');
+      var rect = btn.getBoundingClientRect();
+      var size = Math.max(rect.width, rect.height);
+      r.className = 'nr-ripple';
+      r.style.cssText = 'width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px';
+      btn.style.position = btn.style.position || 'relative';
+      btn.style.overflow = 'hidden';
+      btn.appendChild(r);
+      setTimeout(function(){ r.remove(); }, 600);
+    });
+  });
+})();
+</script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
