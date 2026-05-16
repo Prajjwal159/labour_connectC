@@ -397,9 +397,16 @@ app.get("/farmer/dashboard", checkSubscription, async (req, res) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        const formattedJobs = jobs.map(job => ({
-            ...job,
-            id: job._id
+        const formattedJobs = await Promise.all(jobs.map(async job => {
+            const applied_count = await JobApplication.countDocuments({
+                job_id: job._id,
+                application_status: { $in: ["Applied", "Accepted"] }
+            });
+            return {
+                ...job,
+                id: job._id,
+                applied_count
+            };
         }));
 
         const totalItems = await MarketplaceItem.countDocuments({

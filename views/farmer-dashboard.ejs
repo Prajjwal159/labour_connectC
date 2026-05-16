@@ -250,9 +250,9 @@
                                             <% } %>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="col-lg-4">
+                        <div class="row">
+                            <div class="col-lg-4">
                             <div class="soft-card p-4 full-height-card mb-4">
                                 <h4 class="mb-3">
                                     <%= t('farmer_profile') %>
@@ -419,7 +419,7 @@
                                                                 <form
                                                                     action="/farmer/close-job/<%= job.id %>?lang=<%= currentLang %>"
                                                                     method="POST" class="flex-fill"
-                                                                    onsubmit='return confirm("<%= t("confirm_close_job") %>");'>
+                                                                    onsubmit="return confirm(`<%= t('confirm_close_job') %>`);">
                                                                     <button type="submit"
                                                                         class="btn pretty-btn-red w-100">
                                                                         <%= t('close_job') %>
@@ -429,7 +429,7 @@
                                                                     <form
                                                                         action="/farmer/reopen-job/<%= job.id %>?lang=<%= currentLang %>"
                                                                         method="POST" class="flex-fill"
-                                                                        onsubmit='return confirm("<%= t("confirm_reopen_job") %>");'>
+                                                                        onsubmit="return confirm(`<%= t('confirm_reopen_job') %>`);">
                                                                         <button type="submit"
                                                                             class="btn pretty-btn-green w-100">
                                                                             <%= t('reopen_job') %>
@@ -439,7 +439,7 @@
                                                                         <form
                                                                             action="/farmer/delete-job/<%= job.id %>?lang=<%= currentLang %>"
                                                                             method="POST" class="flex-fill"
-                                                                            onsubmit='return confirm("<%= t("confirm_delete_job") %>");'>
+                                                                            onsubmit="return confirm(`<%= t('confirm_delete_job') %>`);">
                                                                             <button type="submit"
                                                                                 class="btn pretty-btn-outline flex-fill">
                                                                                 <%= t('delete_job') %>
@@ -453,7 +453,7 @@
                                         <% } %>
                             </div>
                         </div>
-            </div>
+                    </div>
             </div>
 
     <!-- Voice Assistant (shared) -->
